@@ -46,7 +46,20 @@ function seedHome(home) {
   fs.writeFileSync(path.join(home, 'events.jsonl'), ev.map((e) => JSON.stringify(e)).join('\n') + '\n');
 }
 
+// Real PR mode: PR_REPO=owner/name PR_BRANCH=branch audits the commands on an actual GitHub PR
+// (cloned once, copied per run so `gh pr view` and origin/main work), instead of the payments fixture.
+const PR_REPO = process.env.PR_REPO, PR_BRANCH = process.env.PR_BRANCH;
+let PR_CACHE = null, PR_DESC = '';
+if (PR_REPO && PR_BRANCH) {
+  PR_CACHE = path.join(OUT, 'pr-cache');
+  spawnSync('gh', ['repo', 'clone', PR_REPO, PR_CACHE, '--', '-q', '--branch', PR_BRANCH], { stdio: 'ignore' });
+  spawnSync('git', ['-C', PR_CACHE, 'fetch', '-q', 'origin', 'main:refs/remotes/origin/main'], { stdio: 'ignore' });
+  const pr = spawnSync('gh', ['pr', 'view', PR_BRANCH, '--repo', PR_REPO, '--json', 'number,title,body'], { encoding: 'utf8' }).stdout;
+  try { const j = JSON.parse(pr); PR_DESC = `PR #${j.number} "${j.title}" on ${PR_REPO}. Its description:\n${j.body}`; } catch {}
+}
+
 function buildPR(work) {
+  if (PR_CACHE) { spawnSync('cp', ['-a', `${PR_CACHE}/.`, work]); return; }
   spawnSync('bash', [path.join(DIR, 'fixtures', 'payments.sh')], { cwd: work });
   spawnSync('bash', [path.join(DIR, 'fixtures', '_git.sh')], { cwd: work });
   spawnSync('bash', [path.join(DIR, 'fixtures', 'pr-payments.sh')], { cwd: work });
@@ -76,7 +89,7 @@ async function one(c, ver, i) {
   }
   const visible = texts.join('\n\n---\n\n'), final = texts.at(-1) || '';
   const judge = async (rubric) => {
-    const out = await run('claude', ['-p', '--model', JUDGE, '--tools', '', '--', `You are auditing the output of a slash command in a learning plugin for a coding assistant. The repo is on a PR branch "fix/idempotent-retries" that fixes double card charges on retry (incident INC-231, 41 customers; refunds handled separately). The user has saved lessons (payments retries, float money, SQL join double counting) and one decision due for review (dropping legacy_users; chose B: CSV backup then drop).\n\nCOMMAND: ${c.cmd}\nWHAT IT IS FOR: ${c.purpose}\n${c.interactive ? 'This command is interactive by design: a complete first step that ends with ONE clear question to the user is correct.' : 'This command should deliver its full content in one go.'}\n\nRUBRIC:\n${rubric}\n\nEVERYTHING THE USER SAW (assistant messages in order, separated by ---):\n<<<\n${visible || '(nothing)'}\n>>>\n\nAnswer with exactly one word on the first line, PASS or FAIL, then one short sentence of reason.`], { cwd: OUT, env: process.env }, 180_000);
+    const out = await run('claude', ['-p', '--model', JUDGE, '--tools', '', '--', `You are auditing the output of a slash command in a learning plugin for a coding assistant. ${PR_DESC ? `The repo is on a real PR branch. ${PR_DESC}\n` : 'The repo is on a PR branch "fix/idempotent-retries" that fixes double card charges on retry (incident INC-231, 41 customers; refunds handled separately).'} The user has saved lessons (payments retries, float money, SQL join double counting) and one decision due for review (dropping legacy_users; chose B: CSV backup then drop).\n\nCOMMAND: ${c.cmd}\nWHAT IT IS FOR: ${c.purpose}\n${c.interactive ? 'This command is interactive by design: a complete first step that ends with ONE clear question to the user is correct.' : 'This command should deliver its full content in one go.'}\n\nRUBRIC:\n${rubric}\n\nEVERYTHING THE USER SAW (assistant messages in order, separated by ---):\n<<<\n${visible || '(nothing)'}\n>>>\n\nAnswer with exactly one word on the first line, PASS or FAIL, then one short sentence of reason.`], { cwd: OUT, env: process.env }, 180_000);
     return { pass: /^\s*PASS/i.test(out.trim()), why: out.trim().split('\n').slice(1).join(' ').slice(0, 220) };
   };
   const [context, readable, complete, clean] = await Promise.all([

@@ -41,6 +41,8 @@ For non-code changes (a contract redline, a policy edit, an analysis), use the s
 
 ## How to write
 - Plain words, for a smart newcomer. Define each technical term in a few words the first time you use it.
+- If the PR has several parts, name them all in one line first, then go deep on the one that matters most.
+- If a command is blocked or fails, read the code another way and don't mention it.
 - Short paragraphs. Finish every part you start; never end on a fragment.
 - Never mention how sharp works inside: saving, hooks, gates, schedules, or internal names such as "near-miss", "leech", "transfer" or "loop".
 - Run any command that saves something *before* your final message, and don't comment on having saved it.

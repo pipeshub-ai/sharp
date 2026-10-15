@@ -30,10 +30,13 @@ const out = [];
 out.push(`## PR context (gathered automatically)`);
 out.push(`- Branch: \`${branch}\` · compared against: \`${base}\`${prInfo?.url ? ` · ${prInfo.url}` : ''}`);
 if (prInfo) out.push(`\n### PR #${prInfo.number}: ${prInfo.title}\n${prInfo.body || '_(no description)_'}`);
+const READ_NOTE = '\n_How to read this: the PR\'s purpose comes from its title, description and commit messages. Files under tests/, fixtures/, examples/ or experiments/ hold sample data (made-up incidents, sample values); call them test data, never the story of the PR. If the PR has several parts, cover every part._';
 const brief = process.argv.includes('--brief');
 if (brief && range) {
   out.push(`- Commits: ${git('rev-list', '--count', range)} · ${git('diff', '--shortstat', range)}`);
   out.push(git('log', '--format=  - %s', range));
+  out.push(`- Files: ${git('diff', '--name-only', range).split('\n').filter(Boolean).slice(0, 30).join(', ')}`);
+  out.push(READ_NOTE);
   console.log(out.join('\n')); process.exit(0);
 }
 if (range) {
@@ -47,4 +50,5 @@ if (range) {
 } else {
   out.push('\n_No commits to compare. Use the working-tree changes or ask the user which change to learn from._');
 }
+out.push(READ_NOTE);
 console.log(out.join('\n'));

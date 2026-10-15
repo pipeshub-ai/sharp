@@ -12,7 +12,7 @@ What's on the current branch:
 node "${CLAUDE_SKILL_DIR}/../../scripts/pr-context.mjs" --brief 2>/dev/null || echo "(no git context)"
 ```
 
-When the user runs this command and nothing was changed in this session, the subject is the current PR or branch.
+When the user runs this command and nothing was changed in this session, the subject is the current PR or branch. The question is about what this branch changes, not about a saved lesson or sample data in its tests.
 
 **First, get the full context of the change. Never work from a guess.** Unless this session already made the change, run:
 ```bash
