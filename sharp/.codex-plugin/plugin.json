@@ -1,0 +1,29 @@
+{
+  "name": "sharp",
+  "version": "0.1.0",
+  "description": "Keeps humans sharp while AI does the work: one-way door gates, 6 Ws change briefs with impact, first-principles reasoning, predict-first coaching, and spaced review.",
+  "author": {
+    "name": "PipesHub"
+  },
+  "license": "MIT",
+  "keywords": [
+    "learning",
+    "human-in-the-loop",
+    "decisions",
+    "spaced-repetition"
+  ],
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks.json",
+  "interface": {
+    "displayName": "Sharp",
+    "shortDescription": "Stay sharp while AI does the work",
+    "developerName": "PipesHub",
+    "category": "Productivity",
+    "defaultPrompt": [
+      "/sharp:learn",
+      "/sharp:review"
+    ]
+  },
+  "homepage": "https://github.com/pipeshub-ai/sharp",
+  "repository": "https://github.com/pipeshub-ai/sharp"
+}

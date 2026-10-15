@@ -1,0 +1,13 @@
+{
+  "name": "pipeshub-plugins",
+  "owner": {
+    "name": "PipesHub"
+  },
+  "plugins": [
+    {
+      "name": "sharp",
+      "source": "./sharp",
+      "description": "Keeps humans sharp while AI does the work."
+    }
+  ]
+}

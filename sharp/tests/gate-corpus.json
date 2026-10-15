@@ -1,0 +1,434 @@
+{
+  "_comment": "Labelled commands for the one-way door gate. door=one-way must trigger, door=two-way must not. Found a false positive or a miss? Add it here first (a failing test), then fix the rule.",
+  "cases": [
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "psql $DATABASE_URL -c 'DROP TABLE invoices;'"
+    },
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "mysql -e \"DROP DATABASE analytics\""
+    },
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "psql -c 'ALTER TABLE users DROP COLUMN phone'"
+    },
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "sqlite3 app.db 'DELETE FROM sessions;'"
+    },
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "psql -c 'TRUNCATE audit_log'"
+    },
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "dropdb staging_copy"
+    },
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "redis-cli -h cache FLUSHDB"
+    },
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "mongosh --eval 'db.dropDatabase()'"
+    },
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "git push --force origin master"
+    },
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "git push origin +main"
+    },
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "git push --force-with-lease origin develop"
+    },
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "git reset --hard origin/main"
+    },
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "git checkout -- ."
+    },
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "git clean -fd"
+    },
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "rm -rf ./data"
+    },
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "rm -fr uploads/"
+    },
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "rm -r -f ~/backups"
+    },
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "terraform apply -auto-approve"
+    },
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "pulumi destroy --yes"
+    },
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "kubectl delete namespace payments"
+    },
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "helm uninstall api -n prod"
+    },
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "aws rds delete-db-instance --db-instance-identifier main"
+    },
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "aws s3 rb s3://customer-exports --force"
+    },
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "gcloud sql instances delete prod-db"
+    },
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "az group delete --name rg-prod"
+    },
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "npm run deploy -- --env production"
+    },
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "kubectl --context=prod-eu apply -f api.yaml"
+    },
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "fly deploy --app shop"
+    },
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "pnpm publish --tag latest"
+    },
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "cargo publish"
+    },
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "twine upload dist/*"
+    },
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "gh release create v2.0.0 --notes 'big'"
+    },
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "git push origin --tags"
+    },
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "gh repo edit acme/secret-sauce --visibility public"
+    },
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "curl -X POST https://hooks.slack.com/services/T0/B0/X -d '{\"text\":\"we are down\"}'"
+    },
+    {
+      "door": "one-way",
+      "tool": "mcp__gmail__send_email",
+      "input": {
+        "to": "ceo@client.com"
+      }
+    },
+    {
+      "door": "one-way",
+      "tool": "mcp__stripe__create_refund",
+      "input": {
+        "amount": 5000
+      }
+    },
+    {
+      "door": "one-way",
+      "tool": "mcp__github__merge_pull_request",
+      "input": {
+        "pr": 12
+      }
+    },
+    {
+      "door": "one-way",
+      "tool": "mcp__slack__post_message",
+      "input": {
+        "channel": "#customers"
+      }
+    },
+    {
+      "door": "two-way",
+      "tool": "Write",
+      "input": {
+        "file_path": "alembic/versions/9f_drop_legacy.py",
+        "content": "op.drop_table('legacy_users')"
+      },
+      "note": "writing a migration is reversible; it is flagged, and applying it is gated"
+    },
+    {
+      "door": "two-way",
+      "tool": "Edit",
+      "input": {
+        "file_path": "db/migrate/20261015_cleanup.rb",
+        "old_string": "",
+        "new_string": "remove_column :users, :ssn"
+      },
+      "note": "writing a migration is reversible; it is flagged, and applying it is gated"
+    },
+    {
+      "door": "two-way",
+      "tool": "Bash",
+      "cmd": "psql -c 'SELECT count(*) FROM users'"
+    },
+    {
+      "door": "two-way",
+      "tool": "Bash",
+      "cmd": "sqlite3 app.db \"DELETE FROM carts WHERE expires_at < now();\""
+    },
+    {
+      "door": "two-way",
+      "tool": "Bash",
+      "cmd": "psql -c 'CREATE TABLE tmp_report AS SELECT 1'"
+    },
+    {
+      "door": "two-way",
+      "tool": "Bash",
+      "cmd": "git push origin feature/new-login"
+    },
+    {
+      "door": "two-way",
+      "tool": "Bash",
+      "cmd": "git push --force-with-lease origin rishi/wip-refactor"
+    },
+    {
+      "door": "two-way",
+      "tool": "Bash",
+      "cmd": "git reset --soft HEAD~1"
+    },
+    {
+      "door": "two-way",
+      "tool": "Bash",
+      "cmd": "git stash -u"
+    },
+    {
+      "door": "two-way",
+      "tool": "Bash",
+      "cmd": "git checkout -b fix/money"
+    },
+    {
+      "door": "two-way",
+      "tool": "Bash",
+      "cmd": "rm -rf node_modules && npm ci"
+    },
+    {
+      "door": "two-way",
+      "tool": "Bash",
+      "cmd": "rm -rf .next dist"
+    },
+    {
+      "door": "two-way",
+      "tool": "Bash",
+      "cmd": "rm -rf __pycache__ .pytest_cache"
+    },
+    {
+      "door": "two-way",
+      "tool": "Bash",
+      "cmd": "rm notes.txt"
+    },
+    {
+      "door": "two-way",
+      "tool": "Bash",
+      "cmd": "terraform plan -out tf.plan"
+    },
+    {
+      "door": "two-way",
+      "tool": "Bash",
+      "cmd": "kubectl get pods -A"
+    },
+    {
+      "door": "two-way",
+      "tool": "Bash",
+      "cmd": "kubectl --context=staging apply -f api.yaml"
+    },
+    {
+      "door": "two-way",
+      "tool": "Bash",
+      "cmd": "helm template api ./chart"
+    },
+    {
+      "door": "two-way",
+      "tool": "Bash",
+      "cmd": "aws s3 ls s3://customer-exports"
+    },
+    {
+      "door": "two-way",
+      "tool": "Bash",
+      "cmd": "npm publish --dry-run"
+    },
+    {
+      "door": "two-way",
+      "tool": "Bash",
+      "cmd": "docker build -t api:dev ."
+    },
+    {
+      "door": "two-way",
+      "tool": "Bash",
+      "cmd": "grep -rn 'dropTable' src/"
+    },
+    {
+      "door": "two-way",
+      "tool": "Bash",
+      "cmd": "echo 'remember to deploy to production on friday' >> TODO.md"
+    },
+    {
+      "door": "two-way",
+      "tool": "Bash",
+      "cmd": "npm test -- --grep 'delete from cart'"
+    },
+    {
+      "door": "two-way",
+      "tool": "mcp__gmail__search_threads",
+      "input": {
+        "q": "invoice"
+      }
+    },
+    {
+      "door": "two-way",
+      "tool": "mcp__gmail__create_draft",
+      "input": {
+        "to": "ceo@client.com"
+      }
+    },
+    {
+      "door": "two-way",
+      "tool": "mcp__github__list_pull_requests",
+      "input": {}
+    },
+    {
+      "door": "two-way",
+      "tool": "mcp__stripe__retrieve_charge",
+      "input": {
+        "id": "ch_1"
+      }
+    },
+    {
+      "door": "two-way",
+      "tool": "Write",
+      "input": {
+        "file_path": "docs/runbook.md",
+        "content": "Never run DROP TABLE in prod without a backup."
+      },
+      "note": "writing a migration is reversible; it is flagged, and applying it is gated"
+    },
+    {
+      "door": "two-way",
+      "tool": "Write",
+      "input": {
+        "file_path": "alembic/versions/a1_add_index.py",
+        "content": "op.create_index('ix_orders_user', 'orders', ['user_id'])"
+      }
+    },
+    {
+      "door": "two-way",
+      "tool": "Edit",
+      "input": {
+        "file_path": "src/money.js",
+        "old_string": "x",
+        "new_string": "deleteFrom(cart)"
+      }
+    },
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "python3 migrate.py migrations/002_drop_phone.sql",
+      "flags": {
+        "destructive-migration": true
+      }
+    },
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "alembic upgrade head",
+      "flags": {
+        "destructive-migration": true
+      }
+    },
+    {
+      "door": "two-way",
+      "tool": "Bash",
+      "cmd": "alembic upgrade head",
+      "note": "no destructive migration pending in this project"
+    },
+    {
+      "door": "two-way",
+      "tool": "Bash",
+      "cmd": "npm run migrate",
+      "note": "no destructive migration pending"
+    },
+    {
+      "door": "two-way",
+      "tool": "Bash",
+      "cmd": "rm -rf \"$tmpdir\"",
+      "note": "temp scratch dir"
+    },
+    {
+      "door": "two-way",
+      "tool": "Bash",
+      "cmd": "rm -rf $TMPDIR/build-cache && echo done"
+    },
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "rm -rf \"$PROJECT_ROOT\"",
+      "note": "variable that isn't a temp dir"
+    }
+  ]
+}

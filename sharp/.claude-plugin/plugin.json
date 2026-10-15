@@ -1,0 +1,68 @@
+{
+  "name": "sharp",
+  "displayName": "Sharp",
+  "version": "0.1.0",
+  "description": "Keeps humans sharp while AI does the work: one-way door gates with decision cards, 6 Ws change briefs with impact, first-principles reasoning, predict-first coaching, and spaced review of what you learned from your own work.",
+  "author": {
+    "name": "PipesHub"
+  },
+  "license": "MIT",
+  "keywords": [
+    "learning",
+    "human-in-the-loop",
+    "decisions",
+    "spaced-repetition",
+    "reasoning"
+  ],
+  "userConfig": {
+    "mode": {
+      "type": "string",
+      "title": "Coaching mode",
+      "description": "off = gate only · light = gate + change briefs (default) · coach = + predict-first and check-yourself · learn = + hint ladder",
+      "options": [
+        "off",
+        "light",
+        "coach",
+        "learn"
+      ],
+      "default": "light"
+    },
+    "detail": {
+      "type": "string",
+      "title": "Detail level",
+      "description": "How much sharp adds to answers. brief = just the essentials (default) · standard = full 6 Ws + impact · full = everything incl. rollback and alternatives",
+      "options": [
+        "brief",
+        "standard",
+        "full"
+      ],
+      "default": "brief"
+    },
+    "role": {
+      "type": "string",
+      "title": "Your role",
+      "description": "Tailors what 'verified' means and which actions count as one-way doors. engineer · legal · student · general",
+      "options": [
+        "general",
+        "engineer",
+        "legal",
+        "student"
+      ],
+      "default": "general"
+    },
+    "focus": {
+      "type": "string",
+      "title": "Growth focus areas (optional)",
+      "description": "Comma-separated topics where you want deliberate practice even when busy, e.g. 'sql, migrations, indemnities'. Everywhere else sharp stays fast.",
+      "default": ""
+    },
+    "mentor": {
+      "type": "string",
+      "title": "Mentor (optional)",
+      "description": "Who to check with before one-way doors, e.g. '@priya'. Shown on Decision Cards; nothing is sent to them.",
+      "default": ""
+    }
+  },
+  "homepage": "https://github.com/pipeshub-ai/sharp",
+  "repository": "https://github.com/pipeshub-ai/sharp"
+}

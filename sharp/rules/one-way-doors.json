@@ -1,0 +1,130 @@
+{
+  "_comment": "One-way door rules. A match makes the agent stop and ask a human. Override or extend per user (~/.sharp/one-way-doors.json) or per project (.sharp/one-way-doors.json); a rule with the same id and \"disabled\": true turns one off. Keep this list short: a gate that fires constantly trains people to click yes without reading.",
+  "rules": [
+    {
+      "id": "sql-destructive",
+      "title": "Destructive database statement",
+      "tool": "^(Bash|shell|local_shell)$",
+      "pattern": "\\bdrop\\s+(table|database|schema|column)\\b|\\btruncate\\s+(table\\s+)?[\\w.\"`]+|\\bdelete\\s+from\\s+[\\w.\"`]+\\s*(;|\"|'|$)|\\bdropdb\\b|\\bflush(all|db)\\b|dropDatabase\\(",
+      "why": "Deleted rows and dropped tables are gone unless a recent backup exists, and restoring a backup also loses everything written since.",
+      "blast": "Every user and service that reads this data.",
+      "safer": "Rename or soft-delete first, take a fresh backup, or run inside a transaction you can roll back.",
+      "unless": "^\\s*(grep|rg|ag|ack|echo|printf|cat|less|head|tail|npm (run )?test|pnpm test|yarn test|pytest|jest|vitest|go test|git (commit|log|grep|show))\\b"
+    },
+    {
+      "id": "migration-destructive",
+      "title": "Destructive migration written",
+      "tool": "^(Write|Edit|MultiEdit|apply_patch)$",
+      "path": "migrat|schema|alembic|flyway|liquibase|changelog|\\.sql$",
+      "pattern": "\\bdrop\\s+(table|column|schema)\\b|\\bremove_column\\b|\\bdrop_table\\b|op\\.drop_(table|column)",
+      "why": "Writing the file is reversible. Applying it deletes data for good.",
+      "blast": "Production data and any service or report still reading the column or table.",
+      "safer": "Expand/contract: stop writing, deploy, verify nothing reads it, then drop in a later release.",
+      "action": "flag",
+      "flag": "destructive-migration"
+    },
+    {
+      "id": "apply-destructive-migration",
+      "title": "Apply a migration that drops data",
+      "tool": "^(Bash|shell|local_shell)$",
+      "pattern": "\\b(alembic\\s+upgrade|rails\\s+db:migrate|rake\\s+db:migrate|prisma\\s+migrate\\s+(deploy|dev)|knex\\s+migrate|flyway\\s+migrate|liquibase\\s+update|manage\\.py\\s+migrate|sequelize\\s+db:migrate|npm\\s+run\\s+migrat\\w*|migrate(\\.py|\\.js)?\\b|sqlite3\\s+\\S+\\s*<\\s*\\S*migrat|psql\\b.*-f\\s*\\S*migrat)",
+      "requiresFlag": "destructive-migration",
+      "why": "This migration drops a column or table, so the data in it is gone once it's applied (unless there's a backup).",
+      "blast": "Everything that reads the dropped column or table, and its stored data.",
+      "safer": "Back up the table first, or expand/contract: stop using it, deploy, then drop it in a later release."
+    },
+    {
+      "id": "force-push-shared",
+      "title": "Force-push to a shared branch",
+      "tool": "^(Bash|shell|local_shell)$",
+      "pattern": "git\\s+push\\b(?=.*(\\s--force(-with-lease)?\\b|\\s-f\\b|\\s\\+\\w))(?=.*\\b(main|master|trunk|develop|release\\S*|prod\\S*)\\b)",
+      "why": "It rewrites history that teammates and CI have already pulled, and their commits can silently disappear.",
+      "blast": "Everyone who has this branch checked out.",
+      "safer": "Push a new branch and open a PR, or use git revert instead of rewriting history."
+    },
+    {
+      "id": "discard-uncommitted",
+      "title": "Discard uncommitted work",
+      "tool": "^(Bash|shell|local_shell)$",
+      "pattern": "git\\s+reset\\s+--hard\\b|git\\s+checkout\\s+--\\s+\\.|git\\s+restore\\s+(--worktree\\s+)?\\.(\\s|$)|git\\s+clean\\s+-\\w*f",
+      "why": "Uncommitted and untracked changes were never saved in git, so nothing can bring them back.",
+      "blast": "Your local, unsaved work.",
+      "safer": "git stash -u first, or commit to a scratch branch."
+    },
+    {
+      "id": "recursive-delete",
+      "title": "Recursive delete",
+      "tool": "^(Bash|shell|local_shell)$",
+      "pattern": "\\brm\\s+(-[a-z]*r[a-z]*f|-[a-z]*f[a-z]*r|-r\\s+-f|-f\\s+-r|--recursive)\\b|\\bshred\\b|\\bmkfs(\\.\\w+)?\\b|\\bdd\\s+.*of=/dev/",
+      "unless": "\\brm\\s+-\\w+\\s+((\\./)?(node_modules|dist|build|out|target|coverage|tmp|\\.next|\\.nuxt|\\.cache|\\.turbo|__pycache__|\\.pytest_cache|\\.mypy_cache|\\.venv|venv)/?\\s*)+($|&&|;|\\|)|\\brm\\s+-\\w+\\s+/tmp/|\\brm\\s+-\\w+\\s+\\\"?\\$\\{?(tmp|TMP|temp|TEMP|tmpdir|TMPDIR|scratch)\\w*\\}?\\\"?(/[^\\s;&|]*)?\\s*($|&&|;|\\|)",
+      "why": "Files deleted this way skip the trash and can't be recovered without a backup.",
+      "blast": "Everything under the target path.",
+      "safer": "List what would be deleted first (ls or find), or move it to a backup folder."
+    },
+    {
+      "id": "cloud-destroy",
+      "title": "Delete or replace cloud infrastructure",
+      "tool": "^(Bash|shell|local_shell)$",
+      "pattern": "\\baws\\s+\\S+\\s+(delete|terminate|remove|rb|deregister)[\\w-]*|\\baws\\s+s3\\s+rm\\b.*--recursive|\\bgcloud\\b.*\\bdelete\\b|\\baz\\b.*\\bdelete\\b|\\bkubectl\\s+delete\\b|\\bhelm\\s+(uninstall|delete)\\b|\\bterraform\\s+(destroy|apply)\\b|\\bpulumi\\s+(destroy|up)\\b|\\bdoctl\\b.*\\bdelete\\b",
+      "why": "Deleted cloud resources such as disks, buckets and databases often take their data with them, and an apply can replace resources in place.",
+      "blast": "Every service running on this infrastructure.",
+      "safer": "Run plan or preview first and read the diff, and snapshot any stateful resources."
+    },
+    {
+      "id": "deploy-production",
+      "title": "Production deploy",
+      "tool": "^(Bash|shell|local_shell)$",
+      "pattern": "\\b(deploy|release|promote|rollout)\\b.*\\b(prod|production|live)\\b|--prod\\b|kubectl\\b.*--context[=\\s]\\S*prod|\\bfly\\s+deploy\\b",
+      "why": "Real users see the change immediately, and a rollback can't undo emails sent, data written, or what users saw in the meantime.",
+      "blast": "All production users.",
+      "safer": "Deploy to staging first, use a canary or feature flag, and know your rollback command.",
+      "ignoreQuoted": true,
+      "unless": "--dry-run\\b|^\\s*(echo|printf|grep|rg|cat)\\b"
+    },
+    {
+      "id": "publish-package",
+      "title": "Publish a package or release",
+      "tool": "^(Bash|shell|local_shell)$",
+      "pattern": "\\b(npm|pnpm|yarn)\\s+publish\\b|\\bcargo\\s+publish\\b|\\btwine\\s+upload\\b|\\bgem\\s+push\\b|\\bpoetry\\s+publish\\b|\\bdocker\\s+push\\b|\\bgh\\s+release\\s+create\\b|git\\s+push\\b.*--tags",
+      "why": "A published version number is permanent: registries block re-use, and others may already have downloaded it.",
+      "blast": "Everyone who depends on this package.",
+      "safer": "Publish a pre-release tag (for example -rc.1) or run a dry run first.",
+      "unless": "--dry-run\\b|--dryrun\\b"
+    },
+    {
+      "id": "repo-admin",
+      "title": "Delete or expose a repository",
+      "tool": "^(Bash|shell|local_shell)$",
+      "pattern": "\\bgh\\s+repo\\s+(delete|archive)\\b|\\bgh\\s+repo\\s+edit\\b.*--visibility|\\bgh\\s+api\\b.*-X\\s*DELETE",
+      "why": "Deleting a repo destroys its issues and PRs. Making it public exposes all of its history, including any secret ever committed.",
+      "blast": "The whole team, and possibly the public.",
+      "safer": "Archive instead of deleting, and scan the history for secrets before changing visibility."
+    },
+    {
+      "id": "send-external",
+      "title": "Send a message outside the team",
+      "tool": "^(Bash|shell|local_shell)$",
+      "pattern": "\\b(sendmail|mutt)\\b|\\bmail\\s+-s\\b|curl\\b.*\\b(api\\.sendgrid|api\\.mailgun|hooks\\.slack\\.com|api\\.twilio)\\b",
+      "why": "A sent message cannot be unsent.",
+      "blast": "Whoever receives it.",
+      "safer": "Show the human the exact text and recipient list first."
+    },
+    {
+      "id": "mcp-irreversible",
+      "title": "Irreversible action through a connected tool",
+      "tool": "^mcp__.+__(send|publish|delete|remove|destroy|drop|purge|transfer|pay|charge|refund|deploy|release|share|merge|post|reply|submit|sign|cancel|terminate)(_[a-z0-9]+)*$|^mcp__.+__(create|issue)_(refund|payment|charge|transfer|payout|invoice)s?$",
+      "why": "Connected tools act on real systems, such as email, payments or tickets, outside this workspace.",
+      "blast": "People and systems outside this session.",
+      "safer": "Draft it and let the human send or approve it."
+    },
+    {
+      "id": "license-change",
+      "title": "Change the project license",
+      "tool": "^(Write|Edit|MultiEdit|apply_patch)$",
+      "path": "(^|/)(LICEN[CS]E|COPYING)(\\.\\w+)?$",
+      "why": "Code already released under the old license stays under it, so this is a legal commitment.",
+      "blast": "All users and contributors.",
+      "safer": "Get explicit sign-off from the project owner or legal."
+    }
+  ]
+}

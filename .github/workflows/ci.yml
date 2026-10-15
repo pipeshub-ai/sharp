@@ -1,0 +1,15 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Unit tests (hooks, CLI, caps, privacy)
+        run: node sharp/tests/run.mjs
+      - name: One-way door gate corpus (precision/recall must be 100%)
+        run: node sharp/tests/gate-corpus.mjs
+      - name: Validate plugin manifest and skills
+        run: npx -y @anthropic-ai/claude-code plugin validate --strict ./sharp

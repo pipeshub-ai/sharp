@@ -1,0 +1,8 @@
+{
+  "name": "pipeshub-plugins",
+  "interface": { "displayName": "PipesHub Plugins" },
+  "plugins": [
+    { "name": "sharp", "source": { "source": "local", "path": "./sharp" },
+      "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" }, "category": "Productivity" }
+  ]
+}
