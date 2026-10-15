@@ -35,6 +35,7 @@ Then pick a mode and role in `/config` (defaults: `light`, `general`). See [shar
 - [docs/FRAMEWORK.md](docs/FRAMEWORK.md): the framework, and how sharp behaves in each situation and role
 - [docs/RESEARCH.md](docs/RESEARCH.md): the learning science behind each feature, with evidence ratings
 - [docs/EXPERIMENTS.md](docs/EXPERIMENTS.md): every A/B round, including what failed
+- [docs/LIMITATIONS.md](docs/LIMITATIONS.md): **known limitations and open problems. Help wanted!**
 - [ROADMAP.md](ROADMAP.md): what's next, including a human pilot
 
 ## Prior art
@@ -44,7 +45,7 @@ Then pick a mode and role in `/config` (defaults: `light`, `general`). See [shar
 Everything stays on your machine (`~/.sharp/`). No telemetry. Prompt text is never stored.
 
 ## Contributing
-The most valuable contributions are labelled gate cases, realistic scenarios and personas, and evidence. See [CONTRIBUTING.md](CONTRIBUTING.md).
+sharp has ten open problems, from far transfer to a human pilot, each with a *done when* criterion. Start with [docs/LIMITATIONS.md](docs/LIMITATIONS.md). The quickest wins are labelled gate cases and realistic scenarios or personas from your field. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 [MIT](LICENSE) © 2026 PipesHub

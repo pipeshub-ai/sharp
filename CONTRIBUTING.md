@@ -2,6 +2,9 @@
 
 Thanks for helping people stay sharp.
 
+## Start here
+[docs/LIMITATIONS.md](docs/LIMITATIONS.md) lists the open problems (P1–P10) with evidence, ideas and *done when* criteria. Use the issue templates: **Open problem idea**, **Gate case**, **Scenario or persona**.
+
 ## The easiest, highest-value contributions
 1. **A gate case.** The gate stopped something harmless, or missed something irreversible? Add a labelled line to `sharp/tests/gate-corpus.json` (`"door": "one-way"` or `"two-way"`), run `node sharp/tests/gate-corpus.mjs`, and fix the rule in `sharp/rules/one-way-doors.json` until it's 100% again.
 2. **A scenario.** Add a realistic case to `experiments/experiments.json` (or a persona to `experiments/personas.json`) with easy, medium and complex tiers, especially from non-code work: legal, finance, ops, research, education.

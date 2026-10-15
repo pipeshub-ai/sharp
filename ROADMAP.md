@@ -6,6 +6,7 @@ Guiding rule: **build only what is backed by evidence, and add as little to each
 Context-aware one-way door gate (77-case labelled corpus, 100% precision and recall; destructive migrations flagged on write, gated on apply) · intent check before irreversible requests · Decision Cards and journal with 30-day retrospectives · 4-line Change Brief (6 Ws + impact) · reasoning receipts · your-move-first · check-yourself · transfer-first lessons (when / context / do / because / unless) with just-in-time recall, and practice on new scenarios and near-misses · Anki export · `/sharp:walkthrough` · `/sharp:learn` (7 fast-learning formats) · `/sharp:checkup` (AI-off retention, transfer and explanation, plus calibration) · roles (engineer, legal, student), focus areas, mentor · detail levels · learning budget (≤ 1 question per reply, one "Next time" per topic) · 128 unit tests · A/B evals, component experiments (5 × 3 tiers) and persona journeys (4 personas).
 
 ## v0.2 Close the gaps the experiments found (next 4–6 weeks)
+Each item maps to an open problem in [docs/LIMITATIONS.md](docs/LIMITATIONS.md), where community ideas are collected.
 | Item | Why (from [EXPERIMENTS.md](docs/EXPERIMENTS.md)) |
 |---|---|
 | **Far-transfer matching** | Recall worked for near transfer (0 → 1.00) but far transfer stayed at 0 in every arm. Try a cheap LLM classifier (a `prompt`-type hook) that maps a task to a lesson's *deep structure*, and A/B it against keywords |

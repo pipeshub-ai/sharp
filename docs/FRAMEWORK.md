@@ -104,6 +104,7 @@ ask ONE question at the right moment  →  the person answers (any answer, even 
 No memorizing trivia. No streaks or leaderboards. No manager dashboards of individual scores. No passive AI summaries passed off as "notes". No learning-style matching. No coaching that can't be skipped, except one-way doors.
 
 ## Known limits (honest)
+The full list, with evidence, ideas and how to help, is in **[LIMITATIONS.md](LIMITATIONS.md)**. The headlines:
 - **Far transfer** across domains doesn't happen yet (0% in every arm).
 - **Proportion vs transfer** is a real trade-off. The current balance: proportionate 0.67 (vs 0.83 without sharp), transfer 0.75 (vs 0.17).
 - **All results come from simulation:** Haiku 5.5 as the agent, simulated personas, Opus 5.5 as the judge, 2–3 runs per cell. They show what sharp makes the *AI* do. Whether *people* learn more needs the human pilot in the [roadmap](../ROADMAP.md).
