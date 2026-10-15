@@ -10,6 +10,8 @@ See the [project README](../README.md) for the why, the evidence and the results
 # or try it from a clone
 claude --plugin-dir ./sharp
 ```
+**No setup needed.** All settings are optional, with defaults (`light` mode, `brief` detail, `general` role, no focus areas, no mentor). If the CLI prints *"userConfig options not yet set"* after install, you can ignore it; sharp already runs on the defaults. Change them any time with `/plugin configure sharp@pipeshub-plugins`, `/config`, `/sharp:mode` or `/sharp:grow`.
+
 **Codex:** add the repo marketplace (`.agents/plugins/marketplace.json`), install the plugin, then trust its hooks via `/hooks`. Without hooks, the skills still work, but the gate and the stop-check don't run.
 
 ## What happens automatically
@@ -24,7 +26,7 @@ claude --plugin-dir ./sharp
 | learn mode | Hints before answers; you make the two-way calls; you write the "Next time" rule |
 | Urgent work (`prod down`, `SEV1`, `#ship`) | No coaching. Just the fix and a short brief. |
 
-## Settings (`/config` → plugin options, or the commands below)
+## Settings (all optional: `/config` → plugin options, or the commands below)
 | Setting | Values | Default |
 |---|---|---|
 | mode | off · light · coach · learn | light |

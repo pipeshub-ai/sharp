@@ -29,7 +29,9 @@ Also measured honestly: proportionality is 0.67 with sharp vs 0.83 without; **fa
 /plugin marketplace add pipeshub-ai/sharp
 /plugin install sharp@pipeshub-plugins
 ```
-Then pick a mode and role in `/config` (defaults: `light`, `general`). See [sharp/README.md](sharp/README.md) for commands, settings and gate customization.
+That's it. **sharp works out of the box with sensible defaults** (mode `light`, detail `brief`, role `general`). After installing, Claude Code may say *"5 userConfig options not yet set"*; that's optional, and you can skip it.
+
+To customize it later (optional), run `/plugin configure sharp@pipeshub-plugins`, open `/config`, or use `/sharp:mode` and `/sharp:grow`. See [sharp/README.md](sharp/README.md) for every setting, command and gate rule.
 
 ## Read more
 - [docs/FRAMEWORK.md](docs/FRAMEWORK.md): the framework, and how sharp behaves in each situation and role
