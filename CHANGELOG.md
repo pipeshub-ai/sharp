@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 — 2026-10-15
 - Lessons are a plain-words card (What happened / Rule / Watch for / Not when) by default; A/B overall 0.83 vs 0.69 for the old one-line rule. `lesson_style` can pick others.
 - `/sharp:learn`, `/sharp:walkthrough`, `/sharp:explain-back` and `/sharp:check-yourself` read the whole PR (description, commit messages, diff) via `scripts/pr-context.mjs`.
 - Coaching hooks stay quiet during `/sharp:` commands; plain-named stats; `/sharp:reflect` and `/sharp:grow` show decisions due; the gate no longer blocks quoted `/tmp` cleanup.
