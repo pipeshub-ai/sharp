@@ -25,3 +25,9 @@ For each lesson, **one at a time**:
 4. Grade by **application**, not wording: **again** (didn't see the pattern), **hard** (saw it with a nudge), **good** (applied it), **easy** (applied it and explained why). Then run `node ~/.sharp/bin/sharp.mjs lesson grade <id> <grade>`.
 
 End with one line: how many they applied, and when the next lesson is due. If a lesson keeps failing, its `when` is probably too vague to recognise. Offer to rewrite it in terms of signals they'd actually notice.
+
+## How to write
+- Plain words, for a smart newcomer. Define each technical term in a few words the first time you use it.
+- Short paragraphs. Finish every part you start; never end on a fragment.
+- Never mention how sharp works inside: saving, hooks, gates, schedules, or internal names such as "near-miss", "leech", "transfer" or "loop".
+- Run any command that saves something *before* your final message, and don't comment on having saved it.

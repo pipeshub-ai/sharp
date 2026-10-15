@@ -429,6 +429,24 @@
       "tool": "Bash",
       "cmd": "rm -rf \"$PROJECT_ROOT\"",
       "note": "variable that isn't a temp dir"
+    },
+    {
+      "door": "two-way",
+      "tool": "Bash",
+      "cmd": "rm -rf \"/tmp/walkthrough-demo\"",
+      "note": "quoted temp path (found by the command audit)"
+    },
+    {
+      "door": "two-way",
+      "tool": "Bash",
+      "cmd": "cd /tmp && rm -rf walkthrough-demo",
+      "note": "relative delete inside /tmp"
+    },
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "cd /srv/app && rm -rf uploads",
+      "note": "relative delete outside temp"
     }
   ]
 }

@@ -5,11 +5,12 @@
 //   node sharp.mjs hook <SessionStart|UserPromptSubmit|PreToolUse|PostToolUse|Stop>   (JSON on stdin)
 //   node sharp.mjs card add|due|grade|list
 //   node sharp.mjs decision add|due|review|list
-//   node sharp.mjs mode [off|light|coach|learn] | detail [brief|standard|full] | role [r] | focus add|remove|list [area] | mentor [name] | growth | assess add|list|summary | ship [hours] | unship | stats [days]
+//   node sharp.mjs mode [off|light|coach|learn] | detail [brief|standard|full] | role [r] | focus add|remove|list [area] | mentor [name] | growth | tokens [days] | milestones [days] | assess add|list|summary | ship [hours] | unship | stats [days]
 //
 // All data is local, in $SHARP_HOME (default ~/.sharp), shared across hosts so a
 // card learned in Claude Code comes back in Codex. Prompt text is never stored.
 
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -140,6 +141,17 @@ function lessonIndex() {
   return ` The user's past lessons: ${items}. If a task has the same underlying structure as one of these, even with different surface details, they want to be asked first what they learned last time and whether the context differs (one short question, or none if urgent), and then to hear what's shared and what's different. A lesson is not applied where its context doesn't hold.`;
 }
 
+// How the takeaway is written. A/B tested in experiments/lessons.mjs: it must be easy to
+// understand AND carry the details needed to act on it next time.
+const LESSON_STYLES = {
+  line: { name: '"Next time:" line', spec: 'one line, "Next time: when <situation you\'d recognise>, <what to do>, because <why>" (20 words or fewer)' },
+  card: { name: 'lesson card', spec: 'a short lesson card of 3 labelled lines in plain words: "What tripped us:" the concrete symptom from this task, with the real value or error; "Rule:" exactly what to do and why, specific enough to act on; "Spot it next time:" the signal you would notice, and when the rule does not apply. Explain any technical term in passing' },
+  example: { name: 'lesson with example', spec: 'a lesson in plain words: "Lesson:" one sentence saying what to do and why; "Example:" the before → after from this task with real values; "Doesn\'t apply when:" one short boundary. Explain any technical term in passing' },
+  card2: { name: 'lesson card', spec: 'a short lesson card in plain words that someone who was not here understands on first read (about 80 words): "What happened:" one sentence a newcomer understands, with the real example or value from this task; "Rule:" exactly what to do and why; "Watch for:" the signal you would notice next time; "Not when:" when the rule does not apply. Every technical term gets a few-word definition in brackets right where it is first used, e.g. "idempotency key (an ID the server uses to recognise a repeated request)". No unexplained jargon, no code-only explanations' },
+  plain: { name: 'plain-words lesson', spec: 'a "Lesson:" of 2-3 short sentences in plain words, the way a helpful colleague would explain it: what went wrong (with one concrete example from this task), what to do next time and why, and when it does not apply. No jargon' },
+};
+const lessonStyle = () => LESSON_STYLES[setting('lesson_style', Object.keys(LESSON_STYLES), 'card2')];
+
 function modeContext() {
   const m = resolveMode();
   const head = `sharp (human-learning plugin) is active in ${m.mode} mode${m.ship ? ` (ship mode until ${m.until.slice(11, 16)} UTC, coaching paused)` : ''}.`;
@@ -148,7 +160,7 @@ function modeContext() {
   const focus = resolveFocus().length && m.mode !== 'off' ? ` Growth focus areas (deliberate practice wanted here, full speed elsewhere): ${resolveFocus().join(', ')}.` : '';
   const mentor = resolveMentor() ? ` For one-way doors, the Decision Card suggests checking with the user's mentor, ${resolveMentor()}.` : '';
   const index = m.mode === 'off' ? '' : lessonIndex();
-  return `${head} ${MODE_TEXT[m.mode]}${detail}${role}${focus}${mentor}${index} Goal: transfer, not memorization (lessons = when X in context C, do Y, because Z). #skip = no coaching this turn. Budget: at most 1 question per reply; one ≤20-word "Next time" rule per topic when the loop closes, never repeated or stacked with a quiz; ask only for the fact that blocks you.`;
+  return `${head} ${MODE_TEXT[m.mode]}${detail}${role}${focus}${mentor}${index} Goal: transfer, not memorization: a lesson must be easy to understand and carry what is needed to act on it next time. #skip = no coaching this turn. Budget: at most 1 question per reply; one ${lessonStyle().name} per topic when the loop closes, never repeated or stacked with a quiz; ask only for the fact that blocks you.`;
 }
 
 // ---------- shared install shim ----------
@@ -361,6 +373,94 @@ function matchLesson(prompt) {
   return best;
 }
 
+// ---------- milestones (zero model cost) ----------
+// "Work is done" moments are detected from commands that already ran (commit, push, PR) and from the
+// session ending. Nothing runs while the person is idle, and no AI call is ever made here.
+const gitIn = (cwd, ...a) => { try { return execFileSync('git', ['-C', cwd, ...a], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 3000 }).trim(); } catch { return ''; } };
+
+function detectMilestone(input, cwd) {
+  if (!/^(Bash|shell|local_shell)$/.test(input.tool_name || '')) return null;
+  const cmd = toolText(input.tool_name, input.tool_input || {});
+  const resp = JSON.stringify(input.tool_response || '');
+  if (/(^|&&|;|\|)\s*gh\s+pr\s+create\b/.test(cmd) && !/--dry-run/.test(cmd)) {
+    const url = (resp.match(/https:\/\/[^\s"\\]+\/pull\/\d+/) || [])[0] || '';
+    return { kind: 'pr', url, title: (cmd.match(/--title\s+["']([^"']+)["']/) || [])[1] || gitIn(cwd, 'log', '-1', '--format=%s') };
+  }
+  if (/(^|&&|;|\|)\s*git\s+commit\b/.test(cmd) && !/--dry-run/.test(cmd) && !/nothing to commit/.test(resp)) {
+    return { kind: 'commit', hash: gitIn(cwd, 'rev-parse', '--short', 'HEAD'), title: gitIn(cwd, 'log', '-1', '--format=%s') };
+  }
+  if (/(^|&&|;|\|)\s*git\s+push\b/.test(cmd) && !/--dry-run/.test(cmd)) return { kind: 'push', branch: gitIn(cwd, 'rev-parse', '--abbrev-ref', 'HEAD') };
+  return null;
+}
+
+function milestones(days = 7, sinceIso = null) {
+  const since = sinceIso ? Date.parse(sinceIso) : Date.now() - days * DAY;
+  try { return fs.readFileSync(file('events.jsonl'), 'utf8').trim().split('\n').map(parse).filter((e) => e.type === 'milestone' && Date.parse(e.t) > since); } catch { return []; }
+}
+
+// One line for the next session: what happened since the last time this line was shown (at most every 6 hours).
+function sinceLastTimeLine() {
+  const s = state();
+  const last = s.lastRecapAt || new Date(Date.now() - DAY).toISOString();
+  if (Date.now() - Date.parse(last) < 6 * 3600_000) return '';
+  const ms = milestones(7, last);
+  const prs = ms.filter((m) => m.kind === 'pr'), commits = ms.filter((m) => m.kind === 'commit');
+  let lessons = 0;
+  try { lessons = fs.readFileSync(file('events.jsonl'), 'utf8').trim().split('\n').map(parse).filter((e) => e.type === 'card_add' && Date.parse(e.t) > Date.parse(last)).reduce((a, e) => a + (e.n || 0), 0); } catch {}
+  writeJSON('state.json', { ...state(), lastRecapAt: new Date().toISOString() });
+  if (!prs.length && !commits.length && !lessons) return '';
+  const parts = [];
+  if (prs.length) parts.push(`${prs.length} PR${prs.length > 1 ? 's' : ''}${prs.length === 1 && prs[0].title ? ` ("${prs[0].title.slice(0, 50)}")` : ''}`);
+  if (commits.length) parts.push(`${commits.length} commit${commits.length > 1 ? 's' : ''}`);
+  if (lessons) parts.push(`${lessons} lesson${lessons > 1 ? 's' : ''} saved`);
+  return `since last time: ${parts.join(', ')}${prs.length ? ' · /sharp:learn for a recap' : ''}`;
+}
+
+// ---------- token usage (ROI) ----------
+// Reads exact usage from Claude Code's transcript. Each model call is counted once (by message id).
+// Tokens after a "Stop hook feedback: sharp:" entry are the cost of a reply sharp asked for.
+function turnUsage(transcriptPath) {
+  let raw; try { raw = fs.readFileSync(transcriptPath, 'utf8'); } catch { return null; }
+  const entries = raw.trim().split('\n').map(parse);
+  let start = -1;
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const e = entries[i];
+    if (e.type !== 'user' || e.isMeta) continue;
+    const c = e.message?.content;
+    if (!(Array.isArray(c) && c.some((b) => b.type === 'tool_result'))) { start = i; break; }
+  }
+  if (start < 0) return null;
+  const first = entries[start];
+  const promptText = typeof first.message?.content === 'string' ? first.message.content : (first.message?.content || []).map((b) => b.text || '').join(' ');
+  const byId = new Map();
+  let afterNudge = false;
+  for (const e of entries.slice(start)) {
+    const c = e.message?.content;
+    const text = typeof c === 'string' ? c : '';
+    if (e.type === 'user' && /^Stop hook feedback:[\s\S]*\bsharp:/.test(text)) afterNudge = true;
+    if (e.type === 'assistant' && e.message?.usage) byId.set(e.message.id || e.uuid, { u: e.message.usage, nudge: afterNudge });
+  }
+  const zero = () => ({ input: 0, cacheWrite: 0, cacheRead: 0, output: 0, calls: 0 });
+  const total = zero(), nudge = zero();
+  for (const { u, nudge: n } of byId.values()) {
+    for (const t of n ? [total, nudge] : [total]) {
+      t.input += u.input_tokens || 0; t.cacheWrite += u.cache_creation_input_tokens || 0;
+      t.cacheRead += u.cache_read_input_tokens || 0; t.output += u.output_tokens || 0; t.calls++;
+    }
+  }
+  return { key: first.promptId || first.uuid || String(start), session: first.sessionId || '', sharpCommand: /^\s*\/sharp:/.test(promptText), total, nudge };
+}
+
+function recordUsage(transcriptPath) {
+  const u = turnUsage(transcriptPath);
+  if (!u) return;
+  const ledger = readJSON('usage.json', {});
+  ledger[u.key] = { date: new Date().toISOString(), session: u.session, sharpCommand: u.sharpCommand, total: u.total, nudge: u.nudge };
+  const keys = Object.keys(ledger);
+  if (keys.length > 3000) for (const k of keys.slice(0, keys.length - 3000)) delete ledger[k];
+  writeJSON('usage.json', ledger);
+}
+
 // ---------- transcript scan for Stop ----------
 
 function scanTurn(transcriptPath) {
@@ -413,7 +513,14 @@ function bumpQuiz(sessionId) {
 
 // ---------- hooks ----------
 
-const emit = (obj) => process.stdout.write(JSON.stringify(obj));
+// ROI: every byte sharp adds to the conversation is measured (~4 characters per token).
+const tokEst = (s) => Math.ceil(String(s || '').length / 4);
+const emit = (obj) => {
+  const added = [obj.hookSpecificOutput?.additionalContext, obj.hookSpecificOutput?.permissionDecisionReason, obj.reason].filter(Boolean).join('');
+  if (added) logEvent('inject', { event: obj.hookSpecificOutput?.hookEventName || (obj.decision ? 'Stop' : 'other'), tokens: tokEst(added) });
+  if (obj.systemMessage) logEvent('notice', { chars: obj.systemMessage.length });
+  process.stdout.write(JSON.stringify(obj));
+};
 const context = (event, text, extra = {}) => emit({ hookSpecificOutput: { hookEventName: event, additionalContext: text }, ...extra });
 
 function hook(event, input) {
@@ -427,6 +534,8 @@ function hook(event, input) {
     if (due) notes.push(`${due} lesson${due > 1 ? 's' : ''} ready to practise on a new scenario (~${Math.max(1, Math.round(due * 0.6))} min): /sharp:review`);
     if (dd) notes.push(`${dd} past decision${dd > 1 ? 's' : ''} ready for a retrospective: /sharp:decisions`);
     if (assessSummary().checkupDue) notes.push('monthly AI-off checkup due (~10 min): /sharp:checkup');
+    const recap = sinceLastTimeLine();
+    if (recap) notes.unshift(recap);
     logEvent('session_start', { mode: resolveMode().mode, due, dd });
     return context(event, modeContext(), notes.length ? { systemMessage: `sharp · ${notes.join(' · ')}` } : {});
   }
@@ -453,6 +562,12 @@ function hook(event, input) {
     // Remember this turn's flags so Stop doesn't add coaching to an urgent or #skip turn.
     writeJSON('state.json', { ...state(), turn: { session: input.session_id || null, urgent, skip, at: new Date().toISOString() } });
 
+    // sharp's own commands carry their own instructions: no general coaching, briefs or stop nudges this turn.
+    if (/^\s*\/sharp:/i.test(prompt)) {
+      writeJSON('state.json', { ...state(), turn: { session: input.session_id || null, urgent: false, skip: true, at: new Date().toISOString() } });
+      return context(event, "sharp: this is one of sharp's own commands, so follow its instructions only. Write for a smart newcomer: plain words, define each technical term the first time you use it, short paragraphs, and finish what you start. Don't mention sharp's internals (saving, hooks, gates, schedules) and don't add a separate Change Brief or \"Next time\" line.");
+    }
+
     const lines = [];
     if (ship) lines.push(`The user turned on ship mode for ${ship[1] || 2}h: coaching is paused; the one-way door gate stays on.`);
     if (turnLearn) lines.push(`The user tagged this turn #learn: ${MODE_TEXT.learn}`);
@@ -462,7 +577,7 @@ function hook(event, input) {
       lines.push('sharp: this is a mechanical change. Reply in one or two lines (what changed, how it was checked). No Change Brief, no lesson.');
     } else if (!skip && mode !== 'off' && (cat === 'build' || cat === 'debug')) {
       lines.push(resolveDetail() === 'brief'
-        ? 'If this turn makes a substantial, non-mechanical change, the final message is just one short sentence plus the 4-line Change Brief (What & why / Who · where · when / Impact with Verified and Not verified / Next time: when <situation>, <do>, because <why>). It replaces a longer summary. Open judgment calls go in Impact.'
+        ? `If this turn makes a substantial, non-mechanical change, the final message is one short sentence plus the Change Brief: What & why / Who · where · when / Impact with Verified and Not verified, then ${lessonStyle().spec}. It replaces a longer summary. Open judgment calls go in Impact.`
         : `If this turn changes 2+ files or ~25+ lines, the final message is the Change Brief at ${resolveDetail()} detail (sharp:change-brief), in place of a separate summary.`);
     }
     // Prevention beats gating: flag possible one-way doors before the first attempt.
@@ -471,7 +586,7 @@ function hook(event, input) {
     }
     // 0) The user is asking for direct help (often right after a coaching question): give it, then close the loop.
     const direct = !skip && mode !== 'off' && (mode === 'coach' || mode === 'learn') && WANTS_DIRECT.test(prompt);
-    if (direct) lines.push('sharp: the user is asking for direct help. Explain or do it now, with no further questions this turn, then close with a one-line "Next time" rule (when <situation>, <do>, because <why>) they can reuse.');
+    if (direct) lines.push(`sharp: the user is asking for direct help. Explain or do it now, with no further questions this turn, then close with ${lessonStyle().spec} they can reuse.`);
     // 1) Transfer: a past lesson that fits this situation. At most one coaching question per turn, and this one comes first.
     const recallOn = setting('recall', ['on', 'off'], 'on') === 'on';
     const lesson = recallOn && !skip && !direct && mode !== 'off' ? matchLesson(prompt) : null;
@@ -505,6 +620,25 @@ function hook(event, input) {
     return context(event, lines.join('\n'));
   }
 
+  if (event === 'PostToolUse') {
+    const m = detectMilestone(input, cwd);
+    if (m && m.kind !== 'pr') logEvent('milestone', { ...m, cwd });
+    if (m && m.kind === 'pr') {
+      // A PR counts (and is announced) once, however many times its hook fires.
+      const s = state(), seen = s.prsAnnounced || [];
+      if (!seen.includes(m.url || m.title)) {
+        logEvent('milestone', { ...m, cwd });
+        writeJSON('state.json', { ...s, prsAnnounced: [...seen, m.url || m.title].slice(-50) });
+        return emit({ systemMessage: 'sharp · PR opened. /sharp:learn gives a 2-minute recap of what changed and why.' });
+      }
+    }
+  }
+
+  if (event === 'SessionEnd') {
+    logEvent('milestone', { kind: 'session_end', reason: input.reason || '', cwd });
+    return;
+  }
+
   if (event === 'PreToolUse' || event === 'PostToolUse') {
     const tool = input.tool_name || '';
     const rule = matchRule(loadRules(cwd), tool, input.tool_input || {}, projectFlags(cwd));
@@ -534,6 +668,7 @@ function hook(event, input) {
   }
 
   if (event === 'Stop') {
+    try { recordUsage(input.transcript_path); } catch { /* measuring must never break a turn */ }
     if (input.stop_hook_active) return; // never loop
     const m = resolveMode();
     if (m.mode === 'off') return;
@@ -560,7 +695,7 @@ function hook(event, input) {
       const d = resolveDetail();
       const own = m.mode === 'learn' ? '. In learn mode, leave "Next time:" for the user: end by asking for their own one-line rule for the next similar situation' : '';
       const template = (d === 'brief'
-        ? ' in exactly 4 lines: "What & why:" (change + root cause) / "Who · where · when:" / "Impact:" (blast radius · reversibility or rollback · Verified: what you actually ran · Not verified: gaps) / "Next time:" (when <situation you\'d recognise>, <what to do>, because <why>). Say each point once. If requirements conflicted, "What & why" names both sides and what reconciled them. It replaces your usual summary'
+        ? ` in this shape: "What & why:" (change + root cause) / "Who · where · when:" / "Impact:" (blast radius · reversibility or rollback · Verified: what you actually ran · Not verified: gaps), then ${lessonStyle().spec}. Say each point once. If requirements conflicted, "What & why" names both sides and what reconciled them. It replaces your usual summary`
         : ` at ${d} detail per sharp:change-brief, always including what was Verified and Not verified`) + own;
       asks.push(`add a Change Brief for the ${turn.files.size} file(s) and ~${turn.lines} lines changed${template}`);
     }
@@ -611,9 +746,10 @@ function stats(days = 7) {
     decisionsLogged: count((e) => e.type === 'decision_add'),
     cardsAdded: count((e) => e.type === 'card_add'),
     reviews: reviews.length,
-    recallPrompts: count((e) => e.type === 'recall_prompt'),
-    recallRate: reviews.length ? Math.round((100 * recalled) / reviews.length) + '%' : 'n/a',
-    deck: { total: all.length, due: dueCards().length, mature: all.filter((c) => c.box >= 3).length, leeches: all.filter((c) => c.lapses >= 3).map((c) => c.q) },
+    timesAPastLessonWasRecalled: count((e) => e.type === 'recall_prompt'),
+    lessonPractice: { sessions: reviews.length, appliedCorrectly: reviews.length ? Math.round((100 * recalled) / reviews.length) + '%' : 'no practice yet' },
+    lessons: { total: all.length, readyToPractise: dueCards().length, appliedReliably: all.filter((c) => c.box >= 3).length, keepSlipping: all.filter((c) => c.lapses >= 2).map((c) => c.principle || c.q) },
+    decisionsDueForReview: decisionsDue().map((d) => ({ title: d.title, decidedOn: d.date.slice(0, 10), choice: d.choice })),
   };
 }
 
@@ -661,17 +797,62 @@ function assessSummary() {
   return { lastCheckup: last, checkupDue: due, months };
 }
 
+// ---------- ROI report ----------
+// Optional prices (USD per million tokens) come from the user's own environment; there are no built-in prices.
+function tokens(days = 30) {
+  const since = Date.now() - days * DAY;
+  const turns = Object.values(readJSON('usage.json', {})).filter((t) => Date.parse(t.date) >= since);
+  let ev = [];
+  try { ev = fs.readFileSync(file('events.jsonl'), 'utf8').trim().split('\n').map(parse).filter((e) => Date.parse(e.t) >= since); } catch {}
+  const sum = (rows, f) => rows.reduce((a, r) => a + f(r), 0);
+  const all = (t) => t.input + t.cacheWrite + t.cacheRead + t.output;
+  const totalTokens = sum(turns, (t) => all(t.total));
+  const injected = sum(ev.filter((e) => e.type === 'inject'), (e) => e.tokens || 0);
+  const nudgeTokens = sum(turns, (t) => all(t.nudge));
+  const learning = turns.filter((t) => t.sharpCommand);
+  const learningTokens = sum(learning, (t) => all(t.total));
+  const price = ['INPUT', 'CACHE_WRITE', 'CACHE_READ', 'OUTPUT'].map((k) => Number(process.env[`SHARP_PRICE_${k}`]));
+  const cost = price.every((p) => p >= 0 && !Number.isNaN(p))
+    ? (t) => (t.input * price[0] + t.cacheWrite * price[1] + t.cacheRead * price[2] + t.output * price[3]) / 1e6
+    : null;
+  const pct = (n) => (totalTokens ? `${((100 * n) / totalTokens).toFixed(1)}%` : 'n/a');
+  const count = (type, pred = () => true) => ev.filter((e) => e.type === type && pred(e)).length;
+  const reviews = ev.filter((e) => e.type === 'card_review');
+  return {
+    days,
+    measuredTurns: turns.length,
+    totalTokens,
+    cost: {
+      contextSharpAdded: { tokensApprox: injected, shareOfTotal: pct(injected), note: 'Notes sharp added to conversations (estimated at 4 characters per token). Later calls mostly re-read them from cache, which is cheap.' },
+      extraRepliesSharpAskedFor: { tokens: nudgeTokens, turns: turns.filter((t) => t.nudge.calls).length, shareOfTotal: pct(nudgeTokens), ...(cost ? { usd: +sum(turns, (t) => cost(t.nudge)).toFixed(4) } : {}) },
+      overheadShareOfTotal: pct(injected + nudgeTokens),
+    },
+    learningYouChose: { sharpCommands: learning.length, tokens: learningTokens, shareOfTotal: pct(learningTokens), ...(cost ? { usd: +sum(learning, (t) => cost(t.total)).toFixed(4) } : {}) },
+    ...(cost ? { totalUsd: +sum(turns, (t) => cost(t.total)).toFixed(4) } : { prices: 'Set SHARP_PRICE_INPUT, SHARP_PRICE_CACHE_WRITE, SHARP_PRICE_CACHE_READ and SHARP_PRICE_OUTPUT (USD per million tokens) to see costs.' }),
+    value: {
+      irreversibleActionsStoppedForADecision: count('gate'),
+      decisionsRecorded: count('decision_add'),
+      decisionsLookedBackOn: count('decision_review'),
+      lessonsSaved: sum(ev.filter((e) => e.type === 'card_add'), (e) => e.n || 0),
+      pastLessonsBroughtBackWhenRelevant: count('recall_prompt'),
+      lessonPractice: { sessions: reviews.length, appliedCorrectly: reviews.length ? `${Math.round((100 * reviews.filter((e) => e.grade === 'good' || e.grade === 'easy').length) / reviews.length)}%` : 'no practice yet' },
+      changeBriefsAskedFor: count('stop_nudge'),
+      checkups: count('assess'),
+    },
+  };
+}
+
 // ---------- growth map ----------
 
 function growth() {
   const byTopic = {};
   for (const c of cards()) {
-    const t = (byTopic[c.topic] ||= { topic: c.topic, cards: 0, mature: 0, learning: 0, struggling: [] });
-    t.cards++;
-    if (c.box >= 3) t.mature++; else t.learning++;
-    if (c.lapses >= 2) t.struggling.push(c.q);
+    const t = (byTopic[c.topic] ||= { topic: c.topic, lessons: 0, appliedReliably: 0, stillPractising: 0, keepSlipping: [] });
+    t.lessons++;
+    if (c.box >= 3) t.appliedReliably++; else t.stillPractising++;
+    if (c.lapses >= 2) t.keepSlipping.push(c.principle || c.q);
   }
-  return { role: resolveRole(), mode: resolveMode().mode, focus: resolveFocus(), mentor: resolveMentor() || null, topics: Object.values(byTopic), checkups: assessSummary(), stats7d: stats(7) };
+  return { role: resolveRole(), mode: resolveMode().mode, focus: resolveFocus(), mentor: resolveMentor() || null, topics: Object.values(byTopic), decisionsDueForReview: decisionsDue().map((d) => ({ title: d.title, choice: d.choice, reason: d.reason })), checkups: assessSummary(), stats7d: stats(7) };
 }
 
 // ---------- CLI ----------
@@ -752,6 +933,8 @@ function main() {
         return out({ mentor: resolveMentor() || null });
       }
       case 'growth': return out(growth());
+      case 'tokens': return out(tokens(Number(sub) || 30));
+      case 'milestones': return out(milestones(Number(sub) || 7));
       case 'assess':
         if (sub === 'add') return out(assessAdd(argsOrStdin(rest)));
         if (sub === 'list') return out(assessments());

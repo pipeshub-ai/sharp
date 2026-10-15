@@ -25,3 +25,9 @@ node ~/.sharp/bin/sharp.mjs decision review <id> --outcome "…" --verdict "good
 4. If the lesson generalizes, save it as a lesson (`lesson add --when … --principle …`).
 
 Judgment improves only with feedback. This closes the loop that one-way doors usually leave open.
+
+## How to write
+- Plain words, for a smart newcomer. Define each technical term in a few words the first time you use it.
+- Short paragraphs. Finish every part you start; never end on a fragment.
+- Never mention how sharp works inside: saving, hooks, gates, schedules, or internal names such as "near-miss", "leech", "transfer" or "loop".
+- Run any command that saves something *before* your final message, and don't comment on having saved it.
