@@ -1,22 +1,73 @@
 {
-  "description": "sharp: mode context + warm-up at session start, coaching nudges on prompts, one-way door gate on tools, change brief check at stop. All hooks fail open except the gate's ask.",
+  "description": "sharp: mode context + warm-up at session start, coaching nudges on prompts, one-way door gate on tools, change brief check at stop, milestones (commit / PR / session end) recorded locally with no AI calls. All hooks fail open except the gate's ask.",
   "hooks": {
     "SessionStart": [
-      { "hooks": [ { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/sharp.mjs\" hook SessionStart", "timeout": 10 } ] }
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/sharp.mjs\" hook SessionStart",
+            "timeout": 10
+          }
+        ]
+      }
     ],
     "UserPromptSubmit": [
-      { "hooks": [ { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/sharp.mjs\" hook UserPromptSubmit", "timeout": 10 } ] }
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/sharp.mjs\" hook UserPromptSubmit",
+            "timeout": 10
+          }
+        ]
+      }
     ],
     "PreToolUse": [
-      { "matcher": "Bash|Write|Edit|MultiEdit|shell|local_shell|apply_patch|mcp__.*",
-        "hooks": [ { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/sharp.mjs\" hook PreToolUse", "timeout": 10 } ] }
+      {
+        "matcher": "Bash|Write|Edit|MultiEdit|shell|local_shell|apply_patch|mcp__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/sharp.mjs\" hook PreToolUse",
+            "timeout": 10
+          }
+        ]
+      }
     ],
     "PostToolUse": [
-      { "matcher": "Bash|Write|Edit|MultiEdit|shell|local_shell|apply_patch|mcp__.*",
-        "hooks": [ { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/sharp.mjs\" hook PostToolUse", "timeout": 10 } ] }
+      {
+        "matcher": "Bash|Write|Edit|MultiEdit|shell|local_shell|apply_patch|mcp__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/sharp.mjs\" hook PostToolUse",
+            "timeout": 10
+          }
+        ]
+      }
     ],
     "Stop": [
-      { "hooks": [ { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/sharp.mjs\" hook Stop", "timeout": 10 } ] }
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/sharp.mjs\" hook Stop",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/sharp.mjs\" hook SessionEnd",
+            "timeout": 10
+          }
+        ]
+      }
     ]
   }
 }

@@ -89,3 +89,26 @@ No learning friction during incidents, and the double-charge fix was correct (id
 - A pending-gate flag outliving an approved action.
 - Session context growing past budget. Per-mode budgets are now enforced by tests.
 - 6 gate false positives or misses found by the labelled corpus (now 77 cases, 100%/100%).
+
+## 5. Lesson format and commands on a real PR (2026-10-15)
+
+**Lesson format.** Haiku 5.5 fixes a bug and writes the takeaway. A second Haiku, told it is a first-year junior, reads *only* the takeaway and answers a new problem (transfer) and a look-alike that the rule should not touch (near-miss). Opus 5.5 grades blind. 4 bug scenarios (easy to complex).
+
+| Format | Clear | Complete | Transfer | Near-miss | Overall | Words |
+|---|---|---|---|---|---|---|
+| no plugin (r1, 2 runs) | 0 | 0 | .88 | .75 | 0.41 | — |
+| one-line "Next time" (r1, old default) | .13 | .88 | .88 | .88 | 0.69 | 30 |
+| card (r2, 3 runs) | .17 | .92 | .92 | 1.00 | 0.75 | 95 |
+| **card2 (r2, 3 runs, new default)** | **.58** | .83 | **1.00** | .92 | **0.83** | 99 |
+
+card2 = What happened / Rule / Watch for / Not when, plain words, every term defined in brackets where first used. Clarity is still the weakest dimension.
+
+**Commands on a real PR.** `experiments/commands.mjs` with `PR_REPO=pipeshub-ai/sharp PR_BRANCH=improve/learn-context-lessons` runs all 9 commands on a fresh clone of PR #1 (real `gh pr view`), Haiku 5.5 agent, Opus 5.5 judge.
+
+| | Context | Readable | Complete | Clean | Tokens/run |
+|---|---|---|---|---|---|
+| v0.1.0 | 0.44 | 0.56 | 0.78 | 0.67 | 71k |
+| PR, first pass | 0.67 | 1.00 | 0.89 | 0.78 | 112k |
+| PR, after fixture fix (4 weakest commands, 2 runs each) | 0.88 | 1.00 | 1.00 | 1.00 | 127k |
+
+What the real PR exposed: the PR contains a test fixture describing a made-up payments incident, and `/sharp:learn` and `/sharp:check-yourself` told that story as if it were the PR. `pr-context.mjs` now says fixtures are sample data and that every part of a multi-part PR must be covered. Remaining gap: a single check-yourself question sometimes covers one part of a multi-part PR without naming the rest. Token cost per command run rises (~+55k, mostly the PR diff being read); that is the price of the context the old version lacked.

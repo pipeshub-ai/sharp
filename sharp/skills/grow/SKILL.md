@@ -23,8 +23,9 @@ node ~/.sharp/bin/sharp.mjs growth 2>/dev/null || echo "{}"
 **If it's empty**, show a compact growth map (≤ 10 lines):
 1. **Focus areas**, and for each: lessons still practising vs applied reliably, and anything still slipping.
 2. **Strongest topic** (most reliably applied lessons): suggest *lowering* coaching there. Being taught what you already know is a waste.
-3. **Biggest gap** (lessons that keep slipping, or a focus area with no lessons yet): one concrete next step, e.g. "`/sharp:learn <topic> drill` (5 min)".
-4. If there are no focus areas yet, ask one question: "What do you want to be able to do on your own in 3 months?" Then turn the answer into 1–3 focus areas.
+3. **Decisions to look back on:** any past decision due for review (name it, with what was chosen).
+4. **Biggest gap** (lessons that keep slipping, or a focus area with no lessons yet): one concrete next step, e.g. "`/sharp:learn <topic> drill` (5 min)".
+5. If there are no focus areas yet, ask one question: "What do you want to be able to do on your own in 3 months?" Then turn the answer into 1–3 focus areas.
 
 ## Mentor note (`note`)
 Draft a short note the user can **choose** to send their mentor. Nothing is sent automatically:
@@ -33,3 +34,9 @@ Draft a short note the user can **choose** to send their mentor. Nothing is sent
 - Where I'm stuck (lessons that keep slipping).
 - One question for you.
 ≤ 8 lines, in the first person, in the user's voice. AI can do the work, but only people can pass on judgment, so the note exists to make mentoring conversations happen.
+
+## How to write
+- Plain words, for a smart newcomer. Define each technical term in a few words the first time you use it.
+- Short paragraphs. Finish every part you start; never end on a fragment.
+- Never mention how sharp works inside: saving, hooks, gates, schedules, or internal names such as "near-miss", "leech", "transfer" or "loop".
+- Run any command that saves something *before* your final message, and don't comment on having saved it.

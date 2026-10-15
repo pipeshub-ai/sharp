@@ -130,7 +130,7 @@ r = run(['hook', 'UserPromptSubmit'], { prompt: 'why does the cache return stale
 check('coach: #skip suppresses', r.out.trim() === '', r.out);
 r = run(['hook', 'UserPromptSubmit'], { prompt: 'The checkout test is failing with a timeout error' }, { CLAUDE_PLUGIN_OPTION_MODE: 'light' });
 check('light: no guess nudge', !/your-move-first/.test(r.out), r.out);
-check('light: brief format announced up front for fix tasks', /4-line Change Brief/.test(r.out), r.out);
+check('light: brief format announced up front for fix tasks', /Change Brief/.test(r.out) && /Verified/.test(r.out), r.out);
 r = run(['hook', 'UserPromptSubmit'], { prompt: 'what is a monad?' }, { CLAUDE_PLUGIN_OPTION_MODE: 'light' });
 check('light: nothing injected for plain questions', r.out.trim() === '', r.out);
 r = run(['hook', 'UserPromptSubmit'], { prompt: 'ship this release #ship 3h' }, coach);
@@ -290,6 +290,63 @@ fs.writeFileSync(path.join(HOME, 'state.json'), '{}');
 check('mechanical change -> one line, no brief', /mechanical change/.test(run(['hook', 'UserPromptSubmit'], { prompt: 'Rename getUser to fetchUser everywhere' }).out));
 fs.writeFileSync(path.join(HOME, 'state.json'), '{}');
 
+for (const st of ['line', 'card', 'example', 'plain']) {
+  const o = run(['hook', 'UserPromptSubmit'], { prompt: 'fix the failing cart tests' }, { EVAL_SHARP_LESSON_STYLE: st }).out;
+  check(`lesson style ${st} reaches the prompt hook`, st === 'line' ? /Next time: when/.test(o) : /plain words/.test(o), o.slice(0, 200));
+}
+fs.writeFileSync(path.join(HOME, 'state.json'), '{}');
+
+r = run(['hook', 'UserPromptSubmit'], { session_id: 'SC', prompt: '/sharp:learn this PR' });
+check("sharp's own command: voice rules, no brief or coaching", /follow its instructions only/.test(r.out) && !/Change Brief \(|your-move-first|one-way door \(/.test(r.out), r.out);
+r = run(['hook', 'Stop'], { session_id: 'SC', transcript_path: transcript([{ file_path: 'a.js', new_string: 'x\n'.repeat(40) }], 'x'), last_assistant_message: 'explanation' });
+check("sharp's own command: no stop nudge", r.out.trim() === '', r.out);
+fs.writeFileSync(path.join(HOME, 'state.json'), '{}');
+
+// --- ROI: exact usage from the transcript, nudge continuations attributed to sharp ---
+{
+  const tp = path.join(HOME, `usage-${Math.random()}.jsonl`);
+  const u = (id, inp, out) => ({ type: 'assistant', message: { id, usage: { input_tokens: inp, cache_creation_input_tokens: 100, cache_read_input_tokens: 1000, output_tokens: out }, content: [{ type: 'text', text: 'x' }] } });
+  fs.writeFileSync(tp, [
+    { type: 'user', promptId: 'p1', sessionId: 's', message: { role: 'user', content: 'fix the bug' } },
+    u('m1', 10, 200), u('m1', 10, 200), // same call logged twice -> counted once
+    { type: 'user', isMeta: true, message: { content: 'Stop hook feedback:\nsharp: before finishing, add a Change Brief' } },
+    u('m2', 5, 80),
+  ].map((l) => JSON.stringify(l)).join('\n'));
+  run(['hook', 'Stop'], { session_id: 's', stop_hook_active: true, transcript_path: tp, last_assistant_message: 'brief' });
+  const led = JSON.parse(fs.readFileSync(path.join(HOME, 'usage.json'), 'utf8')).p1;
+  check('usage: each model call counted once', led?.total?.calls === 2 && led.total.output === 280, JSON.stringify(led));
+  check('usage: continuation after a sharp nudge attributed to sharp', led?.nudge?.output === 80 && led.nudge.calls === 1, JSON.stringify(led));
+  const roi = run(['tokens', '30'], '', {}).json;
+  check('tokens report: totals, overhead share, value', roi?.totalTokens === 2 * 1100 + 15 + 280 && /%$/.test(roi?.cost?.overheadShareOfTotal) && roi?.value && !('totalUsd' in roi), JSON.stringify(roi).slice(0, 300));
+  const priced = run(['tokens', '30'], '', { SHARP_PRICE_INPUT: '3', SHARP_PRICE_CACHE_WRITE: '3.75', SHARP_PRICE_CACHE_READ: '0.3', SHARP_PRICE_OUTPUT: '15' }).json;
+  check('tokens report: dollars only with user-set prices', typeof priced?.totalUsd === 'number');
+  check('injections are measured', /"type":"inject"/.test(fs.readFileSync(path.join(HOME, 'events.jsonl'), 'utf8')));
+}
+fs.writeFileSync(path.join(HOME, 'state.json'), '{}');
+
+// --- milestones: zero model cost ---
+{
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'sharp-ms-'));
+  spawnSync('bash', ['-c', 'git init -q && git -c user.email=a@b -c user.name=a commit -q --allow-empty -m "fix: stop double charges"'], { cwd: repo });
+  fs.writeFileSync(path.join(HOME, 'state.json'), JSON.stringify({ lastRecapAt: new Date(Date.now() - 864e5).toISOString() }));
+  let o = run(['hook', 'PostToolUse'], { cwd: repo, tool_name: 'Bash', tool_input: { command: 'git commit -m "fix: stop double charges"' }, tool_response: { stdout: '[main abc123] fix' } });
+  check('commit: recorded, nothing shown, no model context', o.out.trim() === '' && /"kind":"commit"/.test(fs.readFileSync(path.join(HOME, 'events.jsonl'), 'utf8')), o.out);
+  const prIn = { cwd: repo, tool_name: 'Bash', tool_input: { command: 'gh pr create --title "Stop double charges" --body x' }, tool_response: { stdout: 'https://github.com/acme/pay/pull/42\n' } };
+  o = run(['hook', 'PostToolUse'], prIn);
+  check('PR opened: one line for the person, no model context', /PR opened/.test(o.json?.systemMessage || '') && !o.json?.hookSpecificOutput, o.out);
+  check('PR announced only once', run(['hook', 'PostToolUse'], prIn).out.trim() === '');
+  check('dry runs are not milestones', run(['hook', 'PostToolUse'], { cwd: repo, tool_name: 'Bash', tool_input: { command: 'gh pr create --dry-run' } }).out.trim() === '');
+  run(['hook', 'SessionEnd'], { cwd: repo, reason: 'exit' });
+  check('session end recorded', /"kind":"session_end"/.test(fs.readFileSync(path.join(HOME, 'events.jsonl'), 'utf8')));
+  const ss = run(['hook', 'SessionStart'], {}).json;
+  check('next session: one "since last time" line', /since last time: 1 PR \("Stop double charges"\), 1 commit/.test(ss?.systemMessage || ''), ss?.systemMessage);
+  check('since-last-time line not repeated within 6h', !/since last time/.test(run(['hook', 'SessionStart'], {}).json?.systemMessage || ''));
+  check('notices are not counted as model overhead', /"type":"notice"/.test(fs.readFileSync(path.join(HOME, 'events.jsonl'), 'utf8')));
+  check('milestones command', run(['milestones', '7']).json?.some((m) => m.kind === 'pr'));
+  fs.rmSync(repo, { recursive: true, force: true });
+}
+fs.writeFileSync(path.join(HOME, 'state.json'), '{}');
+
 // --- checkups ---
 check('checkup not due with few cards', run(['assess', 'summary']).json?.checkupDue === false);
 check('assess add', run(['assess', 'add', '--kind', 'retention', '--topic', 'money', '--score', '0.5', '--confidence', '0.9']).json?.score === 0.5);
@@ -308,7 +365,7 @@ check('decision no longer due', run(['decision', 'due']).json?.length === 0);
 const ev = fs.readFileSync(path.join(HOME, 'events.jsonl'), 'utf8');
 check('privacy: prompt text never stored', !/checkout test|payments failing/.test(ev));
 const st = run(['stats']).json;
-check('stats', st?.oneWayDoorGates > 0 && st?.deck?.total === 4, JSON.stringify(st));
+check('stats (plain names)', st?.oneWayDoorGates > 0 && st?.lessons?.total === 4 && Array.isArray(st?.decisionsDueForReview), JSON.stringify(st));
 
 console.log(`\n${pass} passed, ${fail} failed`);
 fs.rmSync(HOME, { recursive: true, force: true });

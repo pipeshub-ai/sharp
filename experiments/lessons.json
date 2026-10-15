@@ -1,0 +1,103 @@
+{
+  "_comment": "Lesson-format A/B. The agent fixes a real bug; its lesson is extracted; a simulated junior who sees ONLY the lesson must handle a new problem with the same root cause (transfer) and a look-alike where the lesson must NOT be applied (near-miss). A blind judge also rates clarity and completeness.",
+  "arms": [
+    {
+      "name": "no-plugin",
+      "plugin": false,
+      "env": {}
+    },
+    {
+      "name": "line",
+      "plugin": true,
+      "env": {
+        "EVAL_SHARP_LESSON_STYLE": "line"
+      }
+    },
+    {
+      "name": "card",
+      "plugin": true,
+      "env": {
+        "EVAL_SHARP_LESSON_STYLE": "card"
+      }
+    },
+    {
+      "name": "example",
+      "plugin": true,
+      "env": {
+        "EVAL_SHARP_LESSON_STYLE": "example"
+      }
+    },
+    {
+      "name": "plain",
+      "plugin": true,
+      "env": {
+        "EVAL_SHARP_LESSON_STYLE": "plain"
+      }
+    },
+    {
+      "name": "card2",
+      "plugin": true,
+      "env": {
+        "EVAL_SHARP_LESSON_STYLE": "card2"
+      }
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "float-money",
+      "tier": "easy",
+      "fixture": "money",
+      "prompt": "The cart tests are failing. Fix the root cause.",
+      "transfer": {
+        "q": "Our invoice PDF shows a total of 45.300000000000004 after adding up the line items. What's going on, and what would you do?",
+        "key": "Binary floating point can't represent decimals like 0.1 exactly, so money arithmetic in floats drifts. Fix: do money math in integer cents (or a decimal type) and round once at a defined point / format for display."
+      },
+      "nearmiss": {
+        "q": "A physics simulation sums thousands of tiny forces as floats, and its results differ from a reference implementation in the 15th decimal place. A teammate wants to convert everything to integer cents. Good idea? What would you do?",
+        "key": "No: this isn't money; integer cents would destroy precision. Tiny float differences are expected; compare with a tolerance instead."
+      }
+    },
+    {
+      "name": "retry-double-charge",
+      "tier": "medium",
+      "fixture": "payments",
+      "prompt": "Some customers got charged twice after we added retries to the payment code. Fix the retry logic.",
+      "transfer": {
+        "q": "Our order service retries 'send confirmation email' when the email provider times out, and some customers now get the same email two or three times. What's going on, and what would you do?",
+        "key": "A timeout doesn't mean the first attempt failed; retrying a non-idempotent side effect repeats it. Fix: send an idempotency key / dedupe ID reused across retries (or check before resending)."
+      },
+      "nearmiss": {
+        "q": "We retry a GET request that reads a product's price when it times out. A teammate wants to add idempotency keys to it too. Is that needed? Why?",
+        "key": "No: a read has no side effect, so retrying it is safe; idempotency keys matter for operations that change state (charges, emails, writes)."
+      }
+    },
+    {
+      "name": "join-double-count",
+      "tier": "medium",
+      "fixture": "sqlshop",
+      "prompt": "The revenue numbers from report.sql look inflated for some customers. Fix the query.",
+      "transfer": {
+        "q": "Our hours-worked report is too high for employees who belong to two teams. The query joins employees, team_memberships and timesheets, then sums hours per employee. What's going on, and what would you do?",
+        "key": "Join fan-out: joining a one-to-many table (memberships) duplicates each timesheet row per team, so the sum is multiplied. Fix: aggregate timesheets per employee before joining, or don't join the one-to-many table into the sum."
+      },
+      "nearmiss": {
+        "q": "A query joins orders to customers (each order has exactly one customer) and sums order totals per customer. Should we worry about double counting here? Why?",
+        "key": "No: a many-to-one join (each order matches exactly one customer) doesn't duplicate order rows, so the sum is correct."
+      }
+    },
+    {
+      "name": "rounding-reconcile",
+      "tier": "complex",
+      "fixture": "revenue",
+      "prompt": "Finance says our monthly revenue report doesn't reconcile with Stripe: it's off by a few dollars across ~3000 charges. Investigate and fix.",
+      "transfer": {
+        "q": "Our payroll system rounds each employee's tax to the cent. The bank's total for the batch differs from ours by $1.12 across 900 employees. What's going on, and what would you do?",
+        "key": "The two sides round at different points (per item vs on the total); small per-item rounding differences add up. Fix: round at the same point as the system you reconcile with (e.g. per item), then sum."
+      },
+      "nearmiss": {
+        "q": "Two dashboards report total page views for the month: 9,000,000 vs 8,960,000. Could per-row rounding explain the 40,000 gap? What would you check?",
+        "key": "No: page views are whole numbers, so nothing is rounded; look for different filters, time zones/date boundaries, bot filtering or missing data."
+      }
+    }
+  ]
+}

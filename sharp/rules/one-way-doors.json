@@ -56,7 +56,7 @@
       "title": "Recursive delete",
       "tool": "^(Bash|shell|local_shell)$",
       "pattern": "\\brm\\s+(-[a-z]*r[a-z]*f|-[a-z]*f[a-z]*r|-r\\s+-f|-f\\s+-r|--recursive)\\b|\\bshred\\b|\\bmkfs(\\.\\w+)?\\b|\\bdd\\s+.*of=/dev/",
-      "unless": "\\brm\\s+-\\w+\\s+((\\./)?(node_modules|dist|build|out|target|coverage|tmp|\\.next|\\.nuxt|\\.cache|\\.turbo|__pycache__|\\.pytest_cache|\\.mypy_cache|\\.venv|venv)/?\\s*)+($|&&|;|\\|)|\\brm\\s+-\\w+\\s+/tmp/|\\brm\\s+-\\w+\\s+\\\"?\\$\\{?(tmp|TMP|temp|TEMP|tmpdir|TMPDIR|scratch)\\w*\\}?\\\"?(/[^\\s;&|]*)?\\s*($|&&|;|\\|)",
+      "unless": "\\brm\\s+-\\w+\\s+((\\./)?(node_modules|dist|build|out|target|coverage|tmp|\\.next|\\.nuxt|\\.cache|\\.turbo|__pycache__|\\.pytest_cache|\\.mypy_cache|\\.venv|venv)/?\\s*)+($|&&|;|\\|)|\\brm\\s+-\\w+\\s+[\"']?/tmp/|\\bcd\\s+[\"']?/tmp[^\\s;&|]*[\"']?\\s*&&\\s*rm\\s|\\brm\\s+-\\w+\\s+\\\"?\\$\\{?(tmp|TMP|temp|TEMP|tmpdir|TMPDIR|scratch)\\w*\\}?\\\"?(/[^\\s;&|]*)?\\s*($|&&|;|\\|)",
       "why": "Files deleted this way skip the trash and can't be recovered without a backup.",
       "blast": "Everything under the target path.",
       "safer": "List what would be deleted first (ls or find), or move it to a backup folder."
