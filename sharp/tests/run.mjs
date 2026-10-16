@@ -354,6 +354,11 @@ check('assess rejects bad kind', run(['assess', 'add', '--kind', 'vibes', '--sco
 const sum = run(['assess', 'summary']).json;
 check('calibration gap = confidence - score', sum?.months?.[0]?.retention?.calibrationGap === '40 pts', JSON.stringify(sum));
 
+// --- due decisions name the chosen option in words, not just its letter ---
+fs.writeFileSync(path.join(HOME, 'decisions.json'), JSON.stringify([{ id: 'd-x', date: '2026-01-01T00:00:00Z', title: 'Drop t', options: ['A: drop now', 'B: export a CSV backup, then drop'], choice: 'B', reason: 'user data', reviewOn: '2026-01-31' }]));
+check('due decision shows the chosen option in words', run(['stats', '7']).json?.decisionsDueForReview?.[0]?.choice === 'B: export a CSV backup, then drop');
+fs.writeFileSync(path.join(HOME, 'decisions.json'), '[]');
+
 // --- decisions ---
 const d = run(['decision', 'add'], { title: 'Drop legacy_email', choice: 'B: rename now, drop in 30d', reason: 'keep undo path', reviewAfterDays: 0 }).json;
 check('decision add', d?.id && d.reviewOn);

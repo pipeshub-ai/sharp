@@ -112,3 +112,22 @@ card2 = What happened / Rule / Watch for / Not when, plain words, every term def
 | PR, after fixture fix (4 weakest commands, 2 runs each) | 0.88 | 1.00 | 1.00 | 1.00 | 127k |
 
 What the real PR exposed: the PR contains a test fixture describing a made-up payments incident, and `/sharp:learn` and `/sharp:check-yourself` told that story as if it were the PR. `pr-context.mjs` now says fixtures are sample data and that every part of a multi-part PR must be covered. Remaining gap: a single check-yourself question sometimes covers one part of a multi-part PR without naming the rest. Token cost per command run rises (~+55k, mostly the PR diff being read); that is the price of the context the old version lacked.
+
+## 6. Check-yourself on a multi-part PR, and a gate hole it found (2026-10-16)
+
+`PR_NUMBER=1` replays merged PR #1 (GitHub keeps `pull/1/head`). A narrow grader asked two questions of every output: does it name at least four of the PR's five parts, and does it say why the PR was made?
+
+| Version | Runs | Names the PR's parts | Says why | Audit (context / readable / complete / clean) |
+|---|---|---|---|---|
+| 0.2.0 | 6 | 2/6 | 5/6 | 0.50 / 1.00 / 0.83 / 0.83 |
+| "name every part" added | 6 | 4/6 | 1/6 | 0.33 / 1.00 / 1.00 / 1.00 |
+| **3-sentence scene: what (all parts) → why → which part and why** | 6 | **6/6** | **6/6** | **1.00 / 1.00 / 1.00 / 1.00** |
+
+The middle row is the lesson: asking for one more thing pushed out something else. Spelling out the order of the scene fixed both. Labels such as "Transfer question:" also leaked from the skill's own list of question types; the skill now says those names are not shown.
+
+**Gate hole.** In one run the agent tested the gate itself and found that `cd /tmp && rm -rf ~/work` passed. The cause was that the "safe cleanup" exemption matched anywhere in the command, so one safe part excused a dangerous part chained to it. This existed in 0.1.0 for `/tmp/` paths and 0.2.0 widened it. Exemptions are now checked part by part (split at `&&`, `||`, `;`, `|` and new lines), every `rm` target must be safe, `..` is never safe, and `cd /tmp` only excuses relative paths after it. 11 new corpus cases; 91 cases at 100% precision and recall.
+
+**Reflect.** Due decisions were reported as "chose B". The stats now carry the option's words ("B: export a CSV backup, then drop").
+
+All 9 commands on PR #1 after these fixes (1 run each, reflect rerun twice after its fix): context 0.89 → 1.00 on reflect's rerun, readable 1.00, complete 1.00, clean 1.00.
+

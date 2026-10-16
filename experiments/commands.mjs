@@ -46,15 +46,22 @@ function seedHome(home) {
   fs.writeFileSync(path.join(home, 'events.jsonl'), ev.map((e) => JSON.stringify(e)).join('\n') + '\n');
 }
 
-// Real PR mode: PR_REPO=owner/name PR_BRANCH=branch audits the commands on an actual GitHub PR
-// (cloned once, copied per run so `gh pr view` and origin/main work), instead of the payments fixture.
-const PR_REPO = process.env.PR_REPO, PR_BRANCH = process.env.PR_BRANCH;
+// Real PR mode: PR_REPO=owner/name plus PR_BRANCH=branch (open PR) or PR_NUMBER=n (any PR, merged too:
+// GitHub keeps pull/<n>/head) audits the commands on an actual GitHub PR (cloned once, copied per run so
+// `gh pr view` and origin/main work), instead of the payments fixture.
+const PR_REPO = process.env.PR_REPO, PR_NUMBER = process.env.PR_NUMBER;
+let PR_BRANCH = process.env.PR_BRANCH;
 let PR_CACHE = null, PR_DESC = '';
-if (PR_REPO && PR_BRANCH) {
+if (PR_REPO && (PR_BRANCH || PR_NUMBER)) {
   PR_CACHE = path.join(OUT, 'pr-cache');
-  spawnSync('gh', ['repo', 'clone', PR_REPO, PR_CACHE, '--', '-q', '--branch', PR_BRANCH], { stdio: 'ignore' });
+  spawnSync('gh', ['repo', 'clone', PR_REPO, PR_CACHE, '--', '-q', ...(PR_BRANCH ? ['--branch', PR_BRANCH] : [])], { stdio: 'ignore' });
+  if (PR_NUMBER) {
+    PR_BRANCH = spawnSync('gh', ['pr', 'view', PR_NUMBER, '--repo', PR_REPO, '--json', 'headRefName', '--jq', '.headRefName'], { encoding: 'utf8' }).stdout.trim();
+    spawnSync('git', ['-C', PR_CACHE, 'fetch', '-q', 'origin', `pull/${PR_NUMBER}/head:${PR_BRANCH}`], { stdio: 'ignore' });
+    spawnSync('git', ['-C', PR_CACHE, 'checkout', '-q', PR_BRANCH], { stdio: 'ignore' });
+  }
   spawnSync('git', ['-C', PR_CACHE, 'fetch', '-q', 'origin', 'main:refs/remotes/origin/main'], { stdio: 'ignore' });
-  const pr = spawnSync('gh', ['pr', 'view', PR_BRANCH, '--repo', PR_REPO, '--json', 'number,title,body'], { encoding: 'utf8' }).stdout;
+  const pr = spawnSync('gh', ['pr', 'view', PR_NUMBER || PR_BRANCH, '--repo', PR_REPO, '--json', 'number,title,body'], { encoding: 'utf8' }).stdout;
   try { const j = JSON.parse(pr); PR_DESC = `PR #${j.number} "${j.title}" on ${PR_REPO}. Its description:\n${j.body}`; } catch {}
 }
 

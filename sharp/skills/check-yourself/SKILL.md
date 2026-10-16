@@ -23,7 +23,12 @@ It prints the PR description (when `gh` is available), every commit message, the
 Target: **understanding**, never trivia or syntax. The questions train the skills needed to supervise AI, and debugging matters most.
 
 ## Pick the question (one at a time)
-Choose from the work just done (or `$ARGUMENTS`), mixing types across sessions. Set the scene in one or two plain sentences first (what the change was and why it was needed), and define any technical term the question uses:
+Choose from the work just done (or `$ARGUMENTS`), mixing types across sessions. Set the scene in one or two plain sentences first (what the change was and why it was needed), and define any technical term the question uses.
+
+For a PR or branch, the scene is three short sentences, in this order:
+1. What it does. If it has several parts, name every one: "This PR does four things: …". The user should never think one part is the whole change.
+2. Why it was made, from the description or commit messages: the problem, incident or request behind it.
+3. Which part the question is about, and why that one: usually the riskiest or the least obvious.
 - **Review** (best for juniors; judging AI output is the core senior skill): "Before you approve this, what would you check?" · Legal: "Which citation here would you verify first, and how?"
 - **Context flip:** "Same change, but this service is a batch job, not user-facing. Does your answer change? Why?"
 - **Why:** "Why does the lock need to cover the read as well as the write?"
@@ -31,7 +36,9 @@ Choose from the work just done (or `$ARGUMENTS`), mixing types across sessions. 
 - **Debug:** "If this breaks in production tomorrow, what's the first thing you'd check?"
 - **Transfer** (most valuable): a *new* situation with the same underlying structure but different surface details. "Same idea, new place: a report sums percentages from three services and the total is 100.01%. What's going on, and what would you do?" Or: "Where else would this pattern bite?"
 
-When offering at the end of a task, give one line that's easy to ignore: `Check yourself (optional): <question>`
+The type names above are for you. Never print them as labels ("Transfer question:", "Debug:"); just ask the question.
+
+When offering at the end of a task, give one line that's easy to ignore: `Check yourself (optional): <question>`. When the user ran the command, ask the question once, with no extra "Check yourself" footer, and end on it: don't announce that you'll grade it or save anything.
 
 ## What becomes a lesson (the goal is transfer, not memorization)
 A lesson is a **reusable rule for a situation in a context**: *when <signals you'd notice>, in <context>, do <action>, because <reason>, unless <boundary>*. Context changes meaning: the same symptom in a different environment can need a different answer. It's what lets someone handle the next similar case on their own. Lessons capture principles, causal "why"s, diagnosis heuristics, trade-offs and invariants. Never make lessons out of syntax, flags, API names or anything a search answers in seconds; at most, mention where to look.
