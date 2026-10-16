@@ -16,7 +16,7 @@ node ~/.sharp/bin/sharp.mjs stats 7 2>/dev/null || echo "{}"
 Write a short, warm, honest reflection (≤ 12 lines):
 1. **How you used AI:** the mix of task types (debug, design, learn, build). Note it if most work was handed off with nothing kept for later: no lessons saved, no reviews, coaching skipped most of the time.
 2. **What's sticking:** recall rate, reliably applied lessons, and "leeches" (lessons that keep failing to transfer, which point to a concept worth relearning with /sharp:learn).
-3. **Judgment:** irreversible actions that were stopped for a decision, decisions recorded, and any past decision now due for a look back (name it).
+3. **Judgment:** irreversible actions that were stopped for a decision, decisions recorded, and any past decision now due for a look back: name it and say what was chosen in words, never just an option letter.
 4. **One habit for next week:** a single, specific, small suggestion, e.g. "Before asking for a fix, write one line saying what you think is wrong." Not a list.
 
 Close with the question: *"This week, how often did you use AI to help you think, and how often so you didn't have to?"* Let them answer, or not.

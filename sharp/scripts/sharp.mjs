@@ -251,6 +251,8 @@ function decisionAdd(d) {
 }
 
 const decisionsDue = () => decisions().filter((d) => !d.outcome && d.reviewOn <= today());
+// "B" means nothing on its own: report the chosen option's words ("B: export a CSV backup, then drop").
+const chosenOption = (d) => (d.options || []).find((o) => new RegExp(`^\\s*${String(d.choice).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*[:.)-]`, 'i').test(o)) || d.choice;
 
 function decisionReview(id, r) {
   const all = decisions();
@@ -303,6 +305,25 @@ function setProjectFlag(cwd, flag, value) {
   writeJSON('state.json', { ...s, flags });
 }
 
+// An exemption covers a shell command only if EVERY part that triggers the rule is exempt on its own:
+// `rm -rf /tmp/x && rm -rf ~/work` must not ride on the safe half. Parts are split at && || ; | and
+// newlines; `unlessAfterCdTmp` applies to parts that follow a `cd` into a temp folder. When in doubt,
+// the action is gated (fail closed).
+const TMP_CD = /^\s*cd\s+["']?(\/tmp|\$\{?(TMPDIR|TMP|TEMP|tmp|tmpdir)\}?)(\/[^\s"';&|]*)?["']?\s*$/;
+function isExempt(r, t, toolName) {
+  const unless = new RegExp(r.unless, 'i');
+  if (!/^(Bash|shell|local_shell)$/.test(toolName)) return unless.test(t);
+  const pattern = new RegExp(r.pattern, 'i'), afterTmp = r.unlessAfterCdTmp && new RegExp(r.unlessAfterCdTmp, 'i');
+  let inTmp = false, hits = 0;
+  for (const part of t.split(/&&|\|\||;|\||\n/)) {
+    if (/^\s*cd\b/.test(part)) inTmp = TMP_CD.test(part) && !part.includes('..');
+    if (!pattern.test(part)) continue;
+    hits++;
+    if (!(unless.test(part) || (inTmp && afterTmp && afterTmp.test(part)))) return false;
+  }
+  return hits > 0;
+}
+
 function matchRule(rules, toolName, input, flags = {}) {
   const text = toolText(toolName, input);
   // ignoreQuoted: match only the command itself, not words inside quoted strings (echo "deploy to prod" >> notes)
@@ -313,7 +334,7 @@ function matchRule(rules, toolName, input, flags = {}) {
       if (r.tool && !new RegExp(r.tool).test(toolName)) continue;
       if (r.path && !new RegExp(r.path, 'i').test(input.file_path || input.notebook_path || '')) continue;
       if (r.pattern && !new RegExp(r.pattern, 'i').test(t)) continue;
-      if (r.unless && new RegExp(r.unless, 'i').test(t)) continue;
+      if (r.unless && isExempt(r, t, toolName)) continue;
       if (r.requiresFlag && !flags[r.requiresFlag]) continue;
       return r;
     } catch { /* a bad regex in a user rule file must not break the gate */ }
@@ -749,7 +770,7 @@ function stats(days = 7) {
     timesAPastLessonWasRecalled: count((e) => e.type === 'recall_prompt'),
     lessonPractice: { sessions: reviews.length, appliedCorrectly: reviews.length ? Math.round((100 * recalled) / reviews.length) + '%' : 'no practice yet' },
     lessons: { total: all.length, readyToPractise: dueCards().length, appliedReliably: all.filter((c) => c.box >= 3).length, keepSlipping: all.filter((c) => c.lapses >= 2).map((c) => c.principle || c.q) },
-    decisionsDueForReview: decisionsDue().map((d) => ({ title: d.title, decidedOn: d.date.slice(0, 10), choice: d.choice })),
+    decisionsDueForReview: decisionsDue().map((d) => ({ title: d.title, decidedOn: d.date.slice(0, 10), choice: chosenOption(d), reason: d.reason })),
   };
 }
 
@@ -852,7 +873,7 @@ function growth() {
     if (c.box >= 3) t.appliedReliably++; else t.stillPractising++;
     if (c.lapses >= 2) t.keepSlipping.push(c.principle || c.q);
   }
-  return { role: resolveRole(), mode: resolveMode().mode, focus: resolveFocus(), mentor: resolveMentor() || null, topics: Object.values(byTopic), decisionsDueForReview: decisionsDue().map((d) => ({ title: d.title, choice: d.choice, reason: d.reason })), checkups: assessSummary(), stats7d: stats(7) };
+  return { role: resolveRole(), mode: resolveMode().mode, focus: resolveFocus(), mentor: resolveMentor() || null, topics: Object.values(byTopic), decisionsDueForReview: decisionsDue().map((d) => ({ title: d.title, choice: chosenOption(d), reason: d.reason })), checkups: assessSummary(), stats7d: stats(7) };
 }
 
 // ---------- CLI ----------

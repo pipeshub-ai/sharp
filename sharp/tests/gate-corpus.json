@@ -447,6 +447,72 @@
       "tool": "Bash",
       "cmd": "cd /srv/app && rm -rf uploads",
       "note": "relative delete outside temp"
+    },
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "cd /tmp && rm -rf ~/work",
+      "note": "a safe part must not excuse a dangerous part chained to it"
+    },
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "rm -rf /tmp/x && rm -rf ~/work",
+      "note": "a safe part must not excuse a dangerous part chained to it"
+    },
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "rm -rf \"/tmp/a\" /home/me",
+      "note": "a safe part must not excuse a dangerous part chained to it"
+    },
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "cd /tmp; rm -rf /etc/x",
+      "note": "a safe part must not excuse a dangerous part chained to it"
+    },
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "rm -rf /tmp/../home/me",
+      "note": "a safe part must not excuse a dangerous part chained to it"
+    },
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "cd /tmp/../home && rm -rf me",
+      "note": "a safe part must not excuse a dangerous part chained to it"
+    },
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "cd /tmp && cd ~ && rm -rf work",
+      "note": "a safe part must not excuse a dangerous part chained to it"
+    },
+    {
+      "door": "one-way",
+      "tool": "Bash",
+      "cmd": "rm -rf /tmp",
+      "note": "a safe part must not excuse a dangerous part chained to it"
+    },
+    {
+      "door": "two-way",
+      "tool": "Bash",
+      "cmd": "rm -rf /tmp/demo",
+      "note": "temp or build cleanup"
+    },
+    {
+      "door": "two-way",
+      "tool": "Bash",
+      "cmd": "npm run build && rm -rf .cache",
+      "note": "temp or build cleanup"
+    },
+    {
+      "door": "two-way",
+      "tool": "Bash",
+      "cmd": "cd \"/tmp/walkthrough-demo\" && rm -rf out",
+      "note": "temp or build cleanup"
     }
   ]
 }

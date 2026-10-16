@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+- **Security:** the one-way door gate no longer lets a safe-looking part excuse a dangerous one (`cd /tmp && rm -rf ~/work`, `rm -rf /tmp/x && rm -rf ~/work`, `rm -rf /tmp/../home/me`). Exemptions are checked part by part. Present since 0.1.0, widened in 0.2.0.
+- `/sharp:check-yourself` opens with what the PR does (every part), why it was made, and which part the question is about.
+- Due decisions show the chosen option in words, not just its letter.
+- `experiments/commands.mjs` can replay any PR, merged ones too, with `PR_NUMBER`.
+
 ## 0.2.0 — 2026-10-15
 - Lessons are a plain-words card (What happened / Rule / Watch for / Not when) by default; A/B overall 0.83 vs 0.69 for the old one-line rule. `lesson_style` can pick others.
 - `/sharp:learn`, `/sharp:walkthrough`, `/sharp:explain-back` and `/sharp:check-yourself` read the whole PR (description, commit messages, diff) via `scripts/pr-context.mjs`.
