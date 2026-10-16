@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.1 — 2026-10-16
 - **Security:** the one-way door gate no longer lets a safe-looking part excuse a dangerous one (`cd /tmp && rm -rf ~/work`, `rm -rf /tmp/x && rm -rf ~/work`, `rm -rf /tmp/../home/me`). Exemptions are checked part by part. Present since 0.1.0, widened in 0.2.0.
 - `/sharp:check-yourself` opens with what the PR does (every part), why it was made, and which part the question is about.
 - Due decisions show the chosen option in words, not just its letter.
