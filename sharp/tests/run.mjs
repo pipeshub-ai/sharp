@@ -72,6 +72,32 @@ for (const [name, command] of Object.entries(mustAllow)) {
   check(`gate allows: ${name}`, r.out.trim() === '', r.out);
 }
 
+// --- read-only shell commands: hooks skip them; anything unsure still runs the hook ---
+const readOnly = [
+  'cat x', 'ls -la src', 'head -n 20 a.txt', 'tail -f log', 'wc -l a b', 'grep -rn foo src/', 'rg TODO', "sed -n '1,40p' f.js",
+  'diff a b', 'cmp a b', 'stat f', 'file f', 'which node', 'pwd', 'free -h', 'df -h', 'uptime', 'ss -ltn',
+  'cat x | grep y | head', 'ls && pwd', 'git status || ls && pwd; df', 'grep foo f 2>/dev/null', 'ls 2>&1 | head', 'cat f > /dev/null',
+  'git status', 'git log --oneline -5', 'git diff main...HEAD', 'git show HEAD', 'git grep foo', 'git ls-files', 'git blame f',
+  'git rev-parse HEAD', 'git merge-base main HEAD', 'git branch --show-current', 'git worktree list', 'git -C ../repo status',
+  'gh pr view 12', 'gh pr checks 12', 'gh pr diff 12', 'gh pr list', 'gh run list', 'gh run view 99 --log',
+];
+const notReadOnly = [
+  'rm -rf x', 'cat x > y', 'cat x >> y', 'ls | tee out', "sed -i 's/a/b/' f", "sed -n '1p;w out' f", "sed -n 'e rm x' f", 'git push',
+  'cat $(evil)', 'cat `evil`', 'find . -delete', 'ls; rm x', 'echo hi | sh', 'ls | xargs rm', 'FOO=1 cat x', 'cat <<EOF\nx\nEOF',
+  'sleep 9 &', 'git branch -D main', 'git -c core.pager=sh log', 'git diff --output=x', 'git grep -O vim foo', 'git worktree remove w',
+  'gh pr merge 1', 'gh run rerun 1', 'rg --pre ./x foo', 'ss -K', 'cat <(evil)', 'ls\nrm x', 'npm test', '',
+];
+const ro = (command) => run(['read-only'], { command }).out.startsWith('read-only');
+for (const c of readOnly) check(`read-only: ${c}`, ro(c));
+for (const c of notReadOnly) check(`not read-only: ${JSON.stringify(c)}`, !ro(c));
+// A read that mentions a one-way door is just a read; one dangerous part still gates the whole line.
+check('hook skips a read-only pipeline', run(['hook', 'PreToolUse'], { tool_name: 'Bash', tool_input: { command: 'cat notes.txt | grep "rm -rf /"' } }).out.trim() === '');
+check('hook still gates a read chained with a delete', run(['hook', 'PreToolUse'], { tool_name: 'Bash', tool_input: { command: 'ls; rm -rf src/' } }).json?.hookSpecificOutput?.permissionDecision === 'ask');
+const evs = () => { try { return fs.readFileSync(path.join(HOME, 'events.jsonl'), 'utf8'); } catch { return ''; } };
+const before = evs();
+run(['hook', 'PostToolUse'], { tool_name: 'Bash', tool_input: { command: 'cat notes.txt | grep "DROP TABLE"' } });
+check('PostToolUse on a read records nothing', evs() === before);
+
 // Edits: destructive migration asks; same text in a README doesn't.
 // Context-aware: writing a destructive migration is reversible (flag only); applying it afterwards is gated.
 const mig = { cwd: '/proj-m', tool_name: 'Write', tool_input: { file_path: 'db/migrations/0042_cleanup.sql', content: 'ALTER TABLE users DROP COLUMN legacy_email;' } };
