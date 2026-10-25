@@ -394,6 +394,49 @@ function matchLesson(prompt) {
   return best;
 }
 
+// ---------- read-only shell commands (hooks skip them) ----------
+// True only when every simple command in the line is a known read. Anything unsure is false, so the hook runs:
+// a miss costs a little overhead, a wrong "read-only" would skip the one-way door gate.
+const READS = new Set('cat ls head tail wc grep rg diff cmp stat file which pwd free df uptime'.split(' '));
+const GIT_READS = new Set('status log diff show grep ls-files blame rev-parse merge-base'.split(' '));
+const GH_READS = new Set(['pr view', 'pr checks', 'pr diff', 'pr list', 'run list', 'run view']);
+
+function readOnlySimple([c, ...a]) {
+  if (READS.has(c)) {
+    if (c === 'rg') return !a.some((x) => /^--pre(-glob)?(=|$)/.test(x)); // --pre runs a program per file
+    if (c === 'file') return !a.some((x) => /^(--compile|-[a-zA-Z]*C)/.test(x)); // -C writes a magic file
+    return true;
+  }
+  if (c === 'sed') {
+    // Only `sed -n '<line>[,<line>]p' file...`: other sed scripts can write files (w) or run commands (e).
+    const flags = a.filter((x) => x.startsWith('-')), args = a.filter((x) => !x.startsWith('-'));
+    return flags.length > 0 && flags.every((f) => /^-[nEr]+$/.test(f)) && flags.some((f) => f.includes('n'))
+      && /^(['"]?)(\d+|\$)(,(\d+|\$))?p\1$/.test(args[0] || '');
+  }
+  if (c === 'ss') return a.every((x) => /^-[ltnuap]+$/.test(x)); // ss -K kills sockets
+  if (c === 'git') {
+    let i = 0;
+    while (a[i] === '-C' || a[i] === '--no-pager') i += a[i] === '-C' ? 2 : 1;
+    const sub = a[i], rest = a.slice(i + 1);
+    if (rest.some((x) => /^(--output|-O|--open-files-in-pager|--ext-diff)/.test(x))) return false; // write a file or run a pager
+    if (GIT_READS.has(sub)) return true;
+    if (sub === 'branch') return rest.length === 1 && rest[0] === '--show-current';
+    return sub === 'worktree' && rest[0] === 'list';
+  }
+  if (c === 'gh') return GH_READS.has(`${a[0]} ${a[1]}`);
+  return false;
+}
+
+function isReadOnlyCommand(cmd) {
+  let s = String(cmd || '').trim();
+  // Command substitution, process substitution, heredocs and multi-line scripts: never read-only.
+  if (!s || /[`\n\r]|\$\(|<<|[<>]\(/.test(s)) return false;
+  // Discarding output is fine; any other redirection or background job is not.
+  s = s.replace(/(^|\s)(\d*|&)>>?\s*\/dev\/null(?=\s|$|[;|&])/g, '$1').replace(/(^|\s)\d*>&\d(?=\s|$|[;|&])/g, '$1');
+  if (/[>&]/.test(s.replace(/&&/g, ''))) return false;
+  return s.split(/\|\||&&|[|;]/).every((seg) => readOnlySimple(seg.trim().split(/\s+/)));
+}
+
 // ---------- milestones (zero model cost) ----------
 // "Work is done" moments are detected from commands that already ran (commit, push, PR) and from the
 // session ending. Nothing runs while the person is idle, and no AI call is ever made here.
@@ -640,6 +683,10 @@ function hook(event, input) {
     if (!lines.length) return;
     return context(event, lines.join('\n'));
   }
+
+  // Reads (cat, grep, git log, gh pr view...) can't be one-way doors or milestones: no gate, no state, no output.
+  if ((event === 'PreToolUse' || event === 'PostToolUse') && /^(Bash|shell|local_shell)$/.test(input.tool_name || '')
+    && isReadOnlyCommand(toolText(input.tool_name, input.tool_input || {}))) return;
 
   if (event === 'PostToolUse') {
     const m = detectMilestone(input, cwd);
@@ -970,6 +1017,10 @@ function main() {
         // Debug helper: echo '{"tool_name":"Bash","tool_input":{"command":"..."}}' | sharp.mjs check-rule
         const i = parse(readStdin());
         return out(matchRule(loadRules(process.cwd()), i.tool_name, i.tool_input || {}) || 'no match (two-way door)');
+      }
+      case 'read-only': {
+        // Debug helper: echo '{"command":"cat x | grep y"}' | sharp.mjs read-only
+        return out(isReadOnlyCommand(parse(readStdin()).command) ? 'read-only (hooks skip it)' : 'not read-only (hooks run)');
       }
     }
     out('usage: sharp.mjs hook <event> | card add|due|grade|list | decision add|due|review|list | mode [m] | ship [h] | unship | stats [days]');

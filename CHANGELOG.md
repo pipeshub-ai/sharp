@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.2.2 — 2026-10-25
+- PreToolUse and PostToolUse hooks exit at once, with no output and no state change, for read-only shell commands (`cat`, `grep`, `sed -n`, `git log`, `gh pr view`, and pipelines or chains of them). Anything unsure (redirects, `$(...)`, heredocs, `find`, `xargs`, env prefixes, unknown commands) still runs the gate. `sharp.mjs read-only` shows the verdict for a command.
+
 ## 0.2.1 — 2026-10-16
 - **Security:** the one-way door gate no longer lets a safe-looking part excuse a dangerous one (`cd /tmp && rm -rf ~/work`, `rm -rf /tmp/x && rm -rf ~/work`, `rm -rf /tmp/../home/me`). Exemptions are checked part by part. Present since 0.1.0, widened in 0.2.0.
 - `/sharp:check-yourself` opens with what the PR does (every part), why it was made, and which part the question is about.
